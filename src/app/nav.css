@@ -1,0 +1,30 @@
+/* Navegación principal: sin línea animada; protagonismo editorial del catálogo. */
+.header nav a.nav-main.nav-main {
+  position: static;
+  min-height: 44px;
+  padding: 0 0.95rem;
+  border: 1px solid color-mix(in srgb, var(--line) 88%, var(--ink));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--paper) 82%, var(--line));
+  color: var(--ink);
+  font-weight: 650;
+}
+.header nav a.nav-main.nav-main::after {
+  content: none;
+  animation: none;
+}
+.header nav a.nav-main.nav-main:hover {
+  border-color: color-mix(in srgb, var(--ink) 22%, var(--line));
+  background: color-mix(in srgb, var(--paper) 70%, var(--line));
+}
+.header nav a.nav-main.nav-main.is-active,
+.header nav a.nav-main.nav-main[aria-current="page"] {
+  border-color: color-mix(in srgb, var(--ink) 28%, var(--line));
+  background: color-mix(in srgb, var(--primary) 12%, var(--paper));
+}
+@media (prefers-reduced-motion: reduce) {
+  .header nav a.nav-main.nav-main,
+  .header nav a.nav-secondary {
+    transition: none;
+  }
+}

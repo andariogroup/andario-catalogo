@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Andario Catálogo
 
-## Getting Started
+Catálogo digital de un solo negocio. El visitante explora, filtra, comparte, arma una lista de interés y pide cotización. El contacto sigue por WhatsApp. No hay pagos, pedidos ni cuentas de comprador.
 
-First, run the development server:
+El producto se llama Andario Catálogo. El nombre comercial que se configura en el administrador es el del negocio, no el del producto.
+
+## Requisitos
+
+- Node.js compatible con Next.js 16.
+- PostgreSQL de desarrollo, separado de cualquier otra base Andario.
+- Cuenta de Cloudinary para fotos y video.
+
+## Arranque
 
 ```bash
+npm install
+copy .env.example .env
+npm run db:setup
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+El servidor local usa el puerto 3020. Sin `DATABASE_URL` la portada explica que falta la base y no muestra productos inventados.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+`npm run db:setup` crea las tablas si no existen y, solo si no hay usuarios, el primer administrador con `ADMIN_EMAIL` y `ADMIN_PASSWORD`. No borra filas.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+La semilla de demostración es optativa y solo para desarrollo:
 
-## Learn More
+```bash
+set SEED_DEMO=1
+npm run db:seed
+```
 
-To learn more about Next.js, take a look at the following resources:
+Se niega si `NODE_ENV` es `production`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Comandos
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `npm run dev` — desarrollo en http://localhost:3020
+- `npm run typecheck`
+- `npm test`
+- `npm run lint`
+- `npm run build`
 
-## Deploy on Vercel
+## Documentación
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+El alcance real, los permisos, el modelo, el despliegue y lo que todavía no está verificado están en `docs/`. El seguimiento está en `docs/IMPLEMENTATION_STATUS.md`.
