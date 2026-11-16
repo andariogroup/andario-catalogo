@@ -27,11 +27,22 @@ export async function generateMetadata(): Promise<Metadata> {
     const description = clip(shell.settings.metaDescription || shell.business.shortDescription || shell.business.slogan, 180);
     const origin = catalogOrigin(shell.settings.publicUrl);
     const image = shell.brand.socialImageUrl || shell.brand.logoUrl;
+    const favicon = shell.brand.faviconUrl.trim();
     return {
       metadataBase: new URL(origin),
       title: { default: title, template: `%s · ${name}` },
       ...(description ? { description } : {}),
       alternates: { canonical: "/" },
+      // Icono de marca en el layout raíz: evita que un favicon.ico estático de Next tape el parametrizado.
+      ...(favicon
+        ? {
+            icons: {
+              icon: [{ url: favicon }],
+              shortcut: favicon,
+              apple: favicon,
+            },
+          }
+        : {}),
       openGraph: {
         title,
         ...(description ? { description } : {}),

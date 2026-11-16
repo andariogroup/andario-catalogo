@@ -9,8 +9,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const shell = await loadShell().catch(() => null);
   if (!shell) return {};
   const image = shell.brand.socialImageUrl || shell.brand.logoUrl;
+  // El favicon vive en el layout raíz (src/app/layout.tsx) para no competir con favicon.ico estático.
   return {
-    ...(shell.brand.faviconUrl ? { icons: { icon: shell.brand.faviconUrl } } : {}),
     ...(image ? { openGraph: { images: [image] } } : {}),
   };
 }

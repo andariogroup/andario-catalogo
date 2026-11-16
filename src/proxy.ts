@@ -127,7 +127,35 @@ function redirectUncached(request: NextRequest, target: string) {
   return withSecurity(request, response);
 }
 
+async function brandFaviconRedirect(request: NextRequest) {
+  if (request.nextUrl.pathname !== "/favicon.ico") return null;
+  const cached = gateGet("favicon");
+  if (cached?.kind === "redirect" && cached.target) {
+    return NextResponse.redirect(cached.target, 307);
+  }
+  if (cached?.kind === "missing") {
+    return new NextResponse(null, { status: 204 });
+  }
+  const databaseUrl = process.env.DATABASE_URL?.trim();
+  if (!databaseUrl) return new NextResponse(null, { status: 204 });
+  const sql = neon(databaseUrl);
+  const rows = await sql`select favicon_url from business_branding where business_id = 1 limit 1`;
+  const favicon = typeof rows[0]?.favicon_url === "string" ? rows[0].favicon_url.trim() : "";
+  if (!favicon || !/^https:\/\//i.test(favicon)) {
+    gateSet("favicon", "missing");
+    return new NextResponse(null, { status: 204 });
+  }
+  gateSet("favicon", "redirect", favicon);
+  return NextResponse.redirect(favicon, 307);
+}
+
 export async function proxy(request: NextRequest) {
+  try {
+    const favicon = await brandFaviconRedirect(request);
+    if (favicon) return favicon;
+  } catch {
+    // Sin favicon parametrizado, el navegador sigue con los <link rel="icon"> del HTML.
+  }
   try {
     const gated = await catalogGate(request);
     if (gated) return gated;
@@ -137,4 +165,4 @@ export async function proxy(request: NextRequest) {
   return withSecurity(request, NextResponse.next());
 }
 
-export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"] };
+export const config = { matcher: ["/((?!_next/static|_next/image).*)"] };
