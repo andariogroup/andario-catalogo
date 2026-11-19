@@ -25,8 +25,10 @@ Módulo nativo del administrador de Andario Catálogo para TRINITARIAS.
 ## Consent Mode (básico)
 
 - Por defecto: analítica denegada.
+- **Aviso automático** (`notice_enabled`): se muestra en primera visita / consentimiento caducado / cambio de versión de política. **No** depende de que GTM o la medición estén activos.
+- GTM **sí** depende de: producción (`VERCEL_ENV=production`) + medición habilitada + ID GTM + consentimiento analítico.
 - GTM **no** se carga antes del consentimiento.
-- Aceptar → se guarda preferencia local + se permite GTM en producción.
+- Aceptar → se guarda preferencia local + se permite GTM cuando la medición está configurada en producción.
 - Rechazar / retirar → no hay nuevas emisiones; si GTM ya estaba cargado se recarga la página.
 - Preview (`VERCEL_ENV=preview`) y desarrollo **no** miden en Google real.
 

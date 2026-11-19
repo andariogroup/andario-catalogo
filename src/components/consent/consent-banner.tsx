@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useConsent } from "@/components/consent/consent-provider";
+import { resolveConsentNoticeCopy } from "@/lib/consent";
 
 export function ConsentBanner({
   title,
@@ -14,17 +15,18 @@ export function ConsentBanner({
 }) {
   const { ready, needsDecision, preferencesOpen, acceptAll, rejectOptional, openPreferences, closePreferences, saveAnalytics, choice } =
     useConsent();
+  const copy = resolveConsentNoticeCopy(title, description);
 
   if (!ready) return null;
   if (!needsDecision && !preferencesOpen) return null;
 
   if (preferencesOpen) {
     return (
-      <div className="consent-banner" role="dialog" aria-modal="true" aria-labelledby="consent-prefs-title">
+      <div className="consent-banner is-prefs" role="dialog" aria-modal="true" aria-labelledby="consent-prefs-title">
         <div className="consent-inner">
           <div className="consent-copy">
             <h2 id="consent-prefs-title">Preferencias de cookies</h2>
-            <p>Las necesarias permiten el funcionamiento básico. Las analíticas son opcionales.</p>
+            <p>Las necesarias permiten el funcionamiento de la tienda. Las analíticas son opcionales.</p>
             <fieldset className="consent-cats">
               <label className="field check">
                 <input type="checkbox" checked disabled />
@@ -36,7 +38,7 @@ export function ConsentBanner({
                   defaultChecked={Boolean(choice?.analytics)}
                   id="consent-analytics"
                 />
-                Analíticas (Google Analytics vía Tag Manager)
+                Analíticas (opcionales)
               </label>
             </fieldset>
           </div>
@@ -61,13 +63,15 @@ export function ConsentBanner({
   }
 
   return (
-    <div className="consent-banner" role="dialog" aria-live="polite" aria-labelledby="consent-title">
+    <div className="consent-banner" role="region" aria-live="polite" aria-labelledby="consent-title">
       <div className="consent-inner">
         <div className="consent-copy">
-          <h2 id="consent-title">{title}</h2>
-          <p>{description}</p>
+          <h2 id="consent-title">{copy.title}</h2>
           <p>
-            <Link href={policyPath}>Política de privacidad</Link>
+            {copy.description}{" "}
+            <Link href={policyPath} className="consent-policy">
+              Política de privacidad
+            </Link>
           </p>
         </div>
         <div className="consent-actions">
@@ -75,10 +79,10 @@ export function ConsentBanner({
             Aceptar todas
           </button>
           <button type="button" className="quiet" onClick={rejectOptional}>
-            Rechazar opcionales
+            Solo necesarias
           </button>
           <button type="button" className="quiet" onClick={openPreferences}>
-            Personalizar preferencias
+            Configurar
           </button>
         </div>
       </div>

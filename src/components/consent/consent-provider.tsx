@@ -11,16 +11,20 @@ import {
 } from "react";
 import {
   CONSENT_STORAGE_KEY,
+  consentDecisionStatus,
   consentNeedsRenewal,
+  consentNoticeNeeded,
   defaultDeniedConsent,
   parseConsentJson,
   type ConsentChoice,
+  type ConsentDecisionStatus,
 } from "@/lib/consent";
 import { configureAnalyticsRuntime, trackPageView, updateConsentMode } from "@/lib/analytics";
 
 type ConsentContextValue = {
   ready: boolean;
   choice: ConsentChoice | null;
+  status: ConsentDecisionStatus;
   needsDecision: boolean;
   preferencesOpen: boolean;
   openPreferences: () => void;
@@ -118,13 +122,19 @@ export function ConsentProvider({
     [commerceEventsEnabled, expirationDays, measurementConfigured],
   );
 
-  const needsDecision = Boolean(
-    ready && noticeEnabled && measurementConfigured && consentNeedsRenewal(choice, policyVersion),
-  );
+  // Aviso automático: noticeEnabled + sin decisión vigente. GTM sigue gateado por measurementConfigured.
+  const needsDecision = consentNoticeNeeded({
+    ready,
+    noticeEnabled,
+    choice,
+    policyVersion,
+  });
+  const status = consentDecisionStatus(ready, choice, policyVersion);
 
   const value: ConsentContextValue = {
     ready,
     choice,
+    status,
     needsDecision,
     preferencesOpen,
     openPreferences: () => setPreferencesOpen(true),

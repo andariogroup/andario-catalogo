@@ -3,6 +3,11 @@
 import { useState } from "react";
 import { savePrivacySettingsAction } from "@/actions/integrations";
 import { BoundForm } from "@/components/admin/form";
+import {
+  CONSENT_NOTICE_DESCRIPTION,
+  CONSENT_NOTICE_TITLE,
+  resolveConsentNoticeCopy,
+} from "@/lib/consent";
 
 export type PrivacyDraft = {
   noticeEnabled: boolean;
@@ -17,6 +22,10 @@ export type PrivacyDraft = {
 
 export function PrivacyConsentStudio({ initial, canEdit }: { initial: PrivacyDraft; canEdit: boolean }) {
   const [draft, setDraft] = useState(initial);
+  const preview = resolveConsentNoticeCopy(draft.noticeTitle, draft.noticeDescription);
+  const usingLegacyStock =
+    preview.title !== draft.noticeTitle.trim() || preview.description !== draft.noticeDescription.trim();
+
   return (
     <div className="seo-layout">
       <div className="seo-main">
@@ -57,6 +66,28 @@ export function PrivacyConsentStudio({ initial, canEdit }: { initial: PrivacyDra
                   onChange={(event) => setDraft((current) => ({ ...current, noticeDescription: event.target.value }))}
                 />
               </label>
+              <p className="hint">
+                Recomendado Andario: «{CONSENT_NOTICE_TITLE}» y la descripción breve sobre cookies necesarias y analíticas.
+              </p>
+              <button
+                type="button"
+                className="quiet"
+                onClick={() =>
+                  setDraft((current) => ({
+                    ...current,
+                    noticeTitle: CONSENT_NOTICE_TITLE,
+                    noticeDescription: CONSENT_NOTICE_DESCRIPTION,
+                  }))
+                }
+              >
+                Aplicar texto recomendado
+              </button>
+              {usingLegacyStock ? (
+                <p className="hint">
+                  La tienda ya muestra el texto recomendado en público (el valor guardado aún es el anterior). Guarda para
+                  alinear la base de datos.
+                </p>
+              ) : null}
               <label className="field">
                 Versión de política
                 <input
@@ -108,10 +139,15 @@ export function PrivacyConsentStudio({ initial, canEdit }: { initial: PrivacyDra
         <section className="seo-card" aria-label="Vista previa del aviso">
           <h2>Vista previa</h2>
           <div className="seo-snippet">
-            <strong>{draft.noticeTitle || "Tu privacidad importa"}</strong>
-            <span>{draft.noticeDescription}</span>
+            <strong>{preview.title}</strong>
+            <span>{preview.description}</span>
+            <span className="hint">Aceptar todas · Solo necesarias · Configurar</span>
           </div>
-          <p className="hint">{draft.noticeEnabled ? "El aviso puede mostrarse en la tienda." : "El aviso está desactivado."}</p>
+          <p className="hint">
+            {draft.noticeEnabled
+              ? "El aviso inicial aparece en la tienda cuando falta una decisión vigente (aunque la medición Google esté apagada)."
+              : "El aviso automático está desactivado; el pie sigue ofreciendo preferencias."}
+          </p>
           {draft.updatedAt ? (
             <p className="hint">
               Última modificación: {draft.updatedAt}

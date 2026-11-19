@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { googleIntegrationSettings, privacyConsentSettings } from "@/lib/db/schema";
 import { catalogOrigin } from "@/lib/seo";
+import { CONSENT_NOTICE_DESCRIPTION, CONSENT_NOTICE_TITLE } from "@/lib/consent";
 import { apexHostFromOrigin, isGoogleMeasurementEnv, searchConsolePropertyFromOrigin } from "@/lib/google-ids";
 import { loadShell } from "@/lib/store";
 
@@ -27,9 +28,8 @@ const DEFAULT_PRIVACY = {
   noticeEnabled: true,
   policyVersion: "1.0",
   consentExpirationDays: 180,
-  noticeTitle: "Tu privacidad importa",
-  noticeDescription:
-    "Usamos tecnologías esenciales para el funcionamiento de nuestra tienda y, con tu permiso, herramientas de análisis para mejorar tu experiencia. Tú decides.",
+  noticeTitle: CONSENT_NOTICE_TITLE,
+  noticeDescription: CONSENT_NOTICE_DESCRIPTION,
   policyPath: "/politicas/privacidad",
   updatedAt: new Date(0),
   updatedBy: "",

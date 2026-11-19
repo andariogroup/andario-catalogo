@@ -19,8 +19,8 @@ CREATE TABLE IF NOT EXISTS privacy_consent_settings (
   notice_enabled boolean NOT NULL DEFAULT true,
   policy_version text NOT NULL DEFAULT '1.0',
   consent_expiration_days integer NOT NULL DEFAULT 180,
-  notice_title text NOT NULL DEFAULT 'Tu privacidad importa',
-  notice_description text NOT NULL DEFAULT 'Usamos tecnologías esenciales para el funcionamiento de nuestra tienda y, con tu permiso, herramientas de análisis para mejorar tu experiencia. Tú decides.',
+  notice_title text NOT NULL DEFAULT 'Uso de cookies',
+  notice_description text NOT NULL DEFAULT 'Utilizamos cookies necesarias para el funcionamiento de la tienda y, con tu autorización, cookies analíticas para conocer cómo se utiliza y mejorarla.',
   policy_path text NOT NULL DEFAULT '/politicas/privacidad',
   updated_at timestamptz NOT NULL DEFAULT now(),
   updated_by text NOT NULL DEFAULT ''

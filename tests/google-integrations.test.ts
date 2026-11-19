@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  CONSENT_NOTICE_DESCRIPTION,
+  CONSENT_NOTICE_TITLE,
+  consentDecisionStatus,
   consentIsExpired,
   consentNeedsRenewal,
+  consentNoticeNeeded,
   defaultDeniedConsent,
   parseConsentJson,
+  resolveConsentNoticeCopy,
 } from "@/lib/consent";
 import {
   apexHostFromOrigin,
@@ -56,6 +61,56 @@ describe("consent persistence", () => {
     expect(parseConsentJson(JSON.stringify(choice))).toEqual(choice);
     expect(parseConsentJson("{bad")).toBeNull();
     expect(consentIsExpired({ ...choice, expiresAt: "2000-01-01T00:00:00.000Z" })).toBe(true);
+  });
+
+  it("distingue loading / undecided / accepted / rejected sin confundir rechazo con no decidido", () => {
+    const rejected = defaultDeniedConsent("1.0", 180);
+    const accepted = { ...rejected, analytics: true };
+    expect(consentDecisionStatus(false, null, "1.0")).toBe("loading");
+    expect(consentDecisionStatus(true, null, "1.0")).toBe("undecided");
+    expect(consentDecisionStatus(true, rejected, "1.0")).toBe("rejected");
+    expect(consentDecisionStatus(true, accepted, "1.0")).toBe("accepted");
+    expect(consentDecisionStatus(true, rejected, "2.0")).toBe("undecided");
+  });
+
+  it("muestra el aviso automático con noticeEnabled aunque la medición Google esté apagada", () => {
+    expect(
+      consentNoticeNeeded({ ready: true, noticeEnabled: true, choice: null, policyVersion: "1.0" }),
+    ).toBe(true);
+    expect(
+      consentNoticeNeeded({ ready: true, noticeEnabled: false, choice: null, policyVersion: "1.0" }),
+    ).toBe(false);
+    const rejected = defaultDeniedConsent("1.0", 180);
+    expect(
+      consentNoticeNeeded({ ready: true, noticeEnabled: true, choice: rejected, policyVersion: "1.0" }),
+    ).toBe(false);
+    expect(
+      consentNoticeNeeded({ ready: true, noticeEnabled: true, choice: rejected, policyVersion: "1.1" }),
+    ).toBe(true);
+    expect(
+      consentNoticeNeeded({
+        ready: true,
+        noticeEnabled: true,
+        choice: { ...rejected, expiresAt: "2000-01-01T00:00:00.000Z" },
+        policyVersion: "1.0",
+      }),
+    ).toBe(true);
+  });
+
+  it("migra solo textos de stock antiguos al copy compacto y respeta personalizaciones", () => {
+    expect(CONSENT_NOTICE_TITLE).toBe("Uso de cookies");
+    expect(CONSENT_NOTICE_DESCRIPTION).toMatch(/cookies necesarias/);
+    expect(CONSENT_NOTICE_DESCRIPTION).not.toMatch(/Tú decides|Tu privacidad importa/i);
+    expect(
+      resolveConsentNoticeCopy(
+        "Tu privacidad importa",
+        "Usamos tecnologías esenciales para el funcionamiento de nuestra tienda y, con tu permiso, herramientas de análisis para mejorar tu experiencia. Tú decides.",
+      ),
+    ).toEqual({ title: CONSENT_NOTICE_TITLE, description: CONSENT_NOTICE_DESCRIPTION });
+    expect(resolveConsentNoticeCopy("Aviso propio", "Texto legal personalizado de la tienda.")).toEqual({
+      title: "Aviso propio",
+      description: "Texto legal personalizado de la tienda.",
+    });
   });
 });
 

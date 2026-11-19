@@ -355,9 +355,9 @@ export const privacyConsentSettings = pgTable("privacy_consent_settings", {
   noticeEnabled: boolean("notice_enabled").notNull().default(true),
   policyVersion: text("policy_version").notNull().default("1.0"),
   consentExpirationDays: integer("consent_expiration_days").notNull().default(180),
-  noticeTitle: text("notice_title").notNull().default("Tu privacidad importa"),
+  noticeTitle: text("notice_title").notNull().default("Uso de cookies"),
   noticeDescription: text("notice_description").notNull().default(
-    "Usamos tecnologías esenciales para el funcionamiento de nuestra tienda y, con tu permiso, herramientas de análisis para mejorar tu experiencia. Tú decides.",
+    "Utilizamos cookies necesarias para el funcionamiento de la tienda y, con tu autorización, cookies analíticas para conocer cómo se utiliza y mejorarla.",
   ),
   policyPath: text("policy_path").notNull().default("/politicas/privacidad"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
