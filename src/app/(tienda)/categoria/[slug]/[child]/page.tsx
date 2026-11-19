@@ -20,10 +20,23 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     notFound();
   }
   const shell = await loadShell().catch(() => null);
+  const brand = shell?.business.name?.trim() ?? "";
+  const rawTitle = category.seoTitle || category.name;
+  const title = titled(rawTitle, brand);
+  const description = category.seoDescription || category.description || undefined;
+  const path = `/categoria/${slug}/${child}`;
+  const ogTitle = typeof title === "object" ? title.absolute : brand ? `${rawTitle} · ${brand}` : rawTitle;
   return {
-    title: titled(category.seoTitle || category.name, shell?.business.name ?? ""),
-    description: category.seoDescription || category.description || undefined,
-    alternates: { canonical: `/categoria/${slug}/${child}` },
+    title,
+    description,
+    alternates: { canonical: path },
+    openGraph: {
+      title: ogTitle,
+      ...(description ? { description } : {}),
+      url: path,
+      type: "website",
+      ...(brand ? { siteName: brand } : {}),
+    },
   };
 }
 

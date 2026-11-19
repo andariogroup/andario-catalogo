@@ -14,17 +14,23 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const found = await getActiveProduct(slug);
   if (!found) notFound();
   const shell = await loadShell().catch(() => null);
+  const brand = shell?.business.name?.trim() ?? "";
   const rawTitle = found.product.seoTitle || found.product.name;
-  const title = titled(rawTitle, shell?.business.name ?? "");
+  const title = titled(rawTitle, brand);
   const description = clip(found.product.seoDescription || found.product.shortDescription || found.product.description, 160);
+  const path = `/producto/${found.product.slug}`;
+  // Misma marca que el <title>: si ya viene en seoTitle no se duplica; si no, se añade al OG.
+  const ogTitle = typeof title === "object" ? title.absolute : brand ? `${rawTitle} · ${brand}` : rawTitle;
   return {
     title,
     description,
-    alternates: { canonical: `/producto/${found.product.slug}` },
+    alternates: { canonical: path },
     openGraph: {
-      title: rawTitle,
+      title: ogTitle,
       description,
-      url: `/producto/${found.product.slug}`,
+      url: path,
+      type: "website",
+      ...(brand ? { siteName: brand } : {}),
       images: found.photos[0] ? [found.photos[0].url] : [],
     },
   };

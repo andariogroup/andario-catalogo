@@ -334,3 +334,32 @@ export const auditEvents = pgTable("audit_events", {
   entity: text("entity").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const googleIntegrationSettings = pgTable("google_integration_settings", {
+  businessId: integer("business_id").primaryKey().default(1),
+  searchConsoleProperty: text("search_console_property").notNull().default(""),
+  ga4MeasurementId: text("ga4_measurement_id").notNull().default(""),
+  ga4PropertyId: text("ga4_property_id").notNull().default(""),
+  gtmContainerId: text("gtm_container_id").notNull().default(""),
+  trackingEnabled: boolean("tracking_enabled").notNull().default(false),
+  commerceEventsEnabled: boolean("commerce_events_enabled").notNull().default(true),
+  lastSitemapCheckAt: timestamp("last_sitemap_check_at", { withTimezone: true }),
+  lastSitemapStatus: text("last_sitemap_status").notNull().default(""),
+  lastSitemapDetail: text("last_sitemap_detail").notNull().default(""),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: text("updated_by").notNull().default(""),
+});
+
+export const privacyConsentSettings = pgTable("privacy_consent_settings", {
+  businessId: integer("business_id").primaryKey().default(1),
+  noticeEnabled: boolean("notice_enabled").notNull().default(true),
+  policyVersion: text("policy_version").notNull().default("1.0"),
+  consentExpirationDays: integer("consent_expiration_days").notNull().default(180),
+  noticeTitle: text("notice_title").notNull().default("Tu privacidad importa"),
+  noticeDescription: text("notice_description").notNull().default(
+    "Usamos tecnologías esenciales para el funcionamiento de nuestra tienda y, con tu permiso, herramientas de análisis para mejorar tu experiencia. Tú decides.",
+  ),
+  policyPath: text("policy_path").notNull().default("/politicas/privacidad"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: text("updated_by").notNull().default(""),
+});

@@ -38,6 +38,7 @@ describe("interacción de tarjeta", () => {
     expect(css).toContain("scale(1.03)");
     expect(css).toContain("scale(0.985)");
     expect(css).toContain("prefers-reduced-motion");
-    expect(css.includes("box-shadow") && /catalog-card-link:hover[\s\S]*?box-shadow/.test(css)).toBe(false);
+    // Sin sombra en el bloque hover de la tarjeta (no confundir con otros box-shadow del CSS).
+    expect(/\.catalog-card-link:hover[^{]*\{[^}]*box-shadow/.test(css)).toBe(false);
   });
 });

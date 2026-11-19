@@ -1,5 +1,7 @@
+"use client";
+
 import Link from "next/link";
-import { Suspense, type CSSProperties } from "react";
+import { Suspense, type CSSProperties, type ReactNode } from "react";
 import { Lock } from "lucide-react";
 import { formatPublicPhone, telHref } from "@/lib/phone";
 import { whatsappHref } from "@/lib/whatsapp";
@@ -8,6 +10,10 @@ import { CartNavLink } from "@/components/catalog/cart";
 import { HeaderSearch } from "@/components/catalog/header-search";
 import { ShopMenu, ShopMenuButton, ShopMenuLinks } from "@/components/catalog/shop-nav";
 import { cartStoreId } from "@/lib/cart";
+import { ConsentBanner, CookiePreferencesLink } from "@/components/consent/consent-banner";
+import { ConsentProvider } from "@/components/consent/consent-provider";
+import { AnalyticsPathWatcher, GtmLoader } from "@/components/consent/gtm-loader";
+import { TrackedWhatsAppLink } from "@/components/consent/analytics-hooks";
 
 type Shell = NonNullable<Awaited<ReturnType<typeof loadShell>>>;
 
@@ -92,12 +98,24 @@ export function ShopFrame({
   shell,
   policies,
   showAdminLink = false,
+  measurement,
   children,
 }: {
   shell: Shell;
   policies: string[];
   showAdminLink?: boolean;
-  children: React.ReactNode;
+  measurement?: {
+    gtmContainerId: string;
+    measurementConfigured: boolean;
+    commerceEventsEnabled: boolean;
+    noticeEnabled: boolean;
+    policyVersion: string;
+    expirationDays: number;
+    noticeTitle: string;
+    noticeDescription: string;
+    policyPath: string;
+  };
+  children: ReactNode;
 }) {
   const { business, brand, settings, socials } = shell;
   const chat = whatsappHref(business.whatsapp, settings.whatsappGeneral || `Hola, vi ${business.name}.`);
@@ -109,7 +127,18 @@ export function ShopFrame({
   });
   const showLogo = Boolean(brand.showLogo && brand.logoUrl);
   const showName = brand.showName || !showLogo;
-  return (
+  const privacy = measurement ?? {
+    gtmContainerId: "",
+    measurementConfigured: false,
+    commerceEventsEnabled: true,
+    noticeEnabled: false,
+    policyVersion: "1.0",
+    expirationDays: 180,
+    noticeTitle: "Tu privacidad importa",
+    noticeDescription: "",
+    policyPath: "/politicas/privacidad",
+  };
+  const frame = (
     <div className="shop" style={themeStyle(shell)}>
       <ShopMenu>
       <header className="header" style={brand.stickyHeader ? { position: "sticky", top: 0, zIndex: 4, background: "color-mix(in srgb, var(--paper) 96%, transparent)" } : undefined}>
@@ -138,7 +167,11 @@ export function ShopFrame({
           <div className="footer-brand">
             <strong className="word">{business.name}</strong>
             {business.slogan || business.shortDescription ? <p>{business.slogan || business.shortDescription}</p> : null}
-            {chat ? <a className="footer-chat" href={chat}>Consultar por WhatsApp</a> : null}
+            {chat ? (
+              <TrackedWhatsAppLink className="footer-chat" href={chat} source="footer">
+                Consultar por WhatsApp
+              </TrackedWhatsAppLink>
+            ) : null}
           </div>
           <div className="footer-links">
             <nav aria-label="Pie del catálogo">
@@ -150,6 +183,7 @@ export function ShopFrame({
                 <Link key={slug} href={`/politicas/${slug}`}>{label}</Link>
               ))}
               <Link href="/lista">Lista de interés</Link>
+              <CookiePreferencesLink />
             </nav>
             <div>
               <p className="footer-label">Contacto</p>
@@ -180,7 +214,22 @@ export function ShopFrame({
           </div>
         </div>
       </footer>
+      <ConsentBanner title={privacy.noticeTitle} description={privacy.noticeDescription} policyPath={privacy.policyPath} />
+      <GtmLoader containerId={privacy.gtmContainerId} measurementConfigured={privacy.measurementConfigured} />
+      <AnalyticsPathWatcher />
     </div>
+  );
+  return (
+    <ConsentProvider
+      noticeEnabled={privacy.noticeEnabled}
+      policyVersion={privacy.policyVersion}
+      expirationDays={privacy.expirationDays}
+      measurementConfigured={privacy.measurementConfigured}
+      commerceEventsEnabled={privacy.commerceEventsEnabled}
+      gtmContainerId={privacy.gtmContainerId}
+    >
+      {frame}
+    </ConsentProvider>
   );
 }
 

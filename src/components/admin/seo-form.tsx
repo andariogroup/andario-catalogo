@@ -82,9 +82,9 @@ export function SeoStudio({
               </label>
               {!seo.metaDescription.trim() && fallbackDescription ? <p className="hint">Si la dejas vacía, la portada usa: {clip(fallbackDescription, 180)}</p> : null}
               <label className="field">URL pública
-                <input name="publicUrl" value={seo.publicUrl} placeholder="https://catalogo.ejemplo" onChange={(event) => setSeo((current) => ({ ...current, publicUrl: event.target.value }))} />
+                <input name="publicUrl" value={seo.publicUrl} placeholder="https://www.trinitarias.co" onChange={(event) => setSeo((current) => ({ ...current, publicUrl: event.target.value }))} />
               </label>
-              {originProblem ? <p className="note-bad">{originProblem}</p> : <p className="hint">{origin ? "Canónico, sitemap, robots y QR usan esta dirección." : `Si la dejas vacía, usan ${fallbackUrl}.`}</p>}
+              {originProblem ? <p className="note-bad">{originProblem}</p> : <p className="hint">{origin ? "Canónico, sitemap, robots y QR usan esta dirección (sin barra final)." : `Si la dejas vacía, usan ${fallbackUrl}. En producción debe ser https://www.trinitarias.co.`}</p>}
               <label className="field check"><input name="indexable" type="checkbox" checked={seo.indexable} onChange={(event) => setSeo((current) => ({ ...current, indexable: event.target.checked }))} />Permitir que los buscadores listen el catálogo</label>
               <p className="hint">{seo.indexable ? "Robots deja entrar a la tienda y niega administración, QR y lista de interés." : "Robots cierra todo el sitio y el sitemap queda vacío."}</p>
               <h3>WhatsApp</h3>

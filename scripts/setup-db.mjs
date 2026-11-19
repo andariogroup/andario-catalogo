@@ -66,6 +66,8 @@ try {
   );
   await pool.query(`insert into business_branding (business_id) values (1) on conflict (business_id) do nothing`);
   await pool.query(`insert into business_settings (business_id) values (1) on conflict (business_id) do nothing`);
+  await pool.query(`insert into google_integration_settings (business_id) values (1) on conflict (business_id) do nothing`);
+  await pool.query(`insert into privacy_consent_settings (business_id) values (1) on conflict (business_id) do nothing`);
   await pool.query(`insert into hero_settings (id) values (1) on conflict (id) do nothing`);
   await pool.query(`insert into announcement_bar (id) values (1) on conflict (id) do nothing`);
   for (const [key, title, sort] of sections) {

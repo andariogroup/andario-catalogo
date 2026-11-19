@@ -1,3 +1,5 @@
+"use client";
+
 import {
   catalogAvailabilityLabel,
   catalogKindLabel,
@@ -5,6 +7,7 @@ import {
 } from "@/lib/catalog-page";
 import { mediaDeliveryUrl } from "@/lib/images";
 import { formatPesos } from "@/lib/money";
+import { emitSelectItem } from "@/components/consent/analytics-hooks";
 
 type Props = {
   product: CatalogProductCard;
@@ -32,10 +35,28 @@ export function ProductCard({ product, photo, symbol, href }: Props) {
   // <a> nativo: evita que el router cliente reutilice redirects 308 cacheados (tumba SEO)
   // que hacen que el clic “no cargue” mientras abrir en pestaña nueva sí funciona.
   const target = href || `/producto/${product.slug}`;
+  const priceNumber = product.pricePesos == null ? undefined : Number(product.pricePesos);
 
   return (
     <article className={`catalog-card${availability === "Agotado" ? " is-sold" : ""}`}>
-      <a className="catalog-card-link" href={target} aria-label={`Ver ${product.name}`}>
+      <a
+        className="catalog-card-link"
+        href={target}
+        aria-label={`Ver ${product.name}`}
+        onClick={() =>
+          emitSelectItem(
+            [
+              {
+                item_id: product.id,
+                item_name: product.name,
+                price: priceNumber,
+                quantity: 1,
+              },
+            ],
+            "Catálogo",
+          )
+        }
+      >
         <div className={`catalog-card-media${photo ? "" : " is-empty"}`}>
           {photo ? (
             // eslint-disable-next-line @next/next/no-img-element

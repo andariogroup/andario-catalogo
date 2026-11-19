@@ -14,6 +14,8 @@ const links = [
   { href: "/admin/multimedia", label: "Multimedia", module: "media" as const, needed: "read" as const },
   { href: "/admin/cotizaciones", label: "Cotizaciones", module: "quotes" as const, needed: "read" as const },
   { href: "/admin/seo", label: "SEO y configuración", module: "seo" as const, needed: "read" as const },
+  { href: "/admin/integraciones/google", label: "Google", module: "integrations" as const, needed: "read" as const },
+  { href: "/admin/integraciones/privacidad", label: "Privacidad y cookies", module: "integrations" as const, needed: "read" as const },
   { href: "/admin/usuarios", label: "Usuarios", module: "users" as const, needed: "manage" as const },
 ];
 

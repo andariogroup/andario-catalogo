@@ -5,6 +5,7 @@ import { ShoppingBag } from "lucide-react";
 import { useActionState, useEffect, useId, useState } from "react";
 import { createQuoteAction } from "@/actions/quotes";
 import { trackEventAction } from "@/actions/events";
+import { emitContactWhatsapp, emitRemoveFromCart, TrackViewCart } from "@/components/consent/analytics-hooks";
 import {
   CART_MAX_QTY,
   cartCountLabel,
@@ -144,8 +145,17 @@ function CarritoBody({
     );
   }
 
+  const analyticsItems = cart.items.map((item) => ({
+    item_id: item.sku || item.productId,
+    item_name: item.name,
+    item_variant: item.variantLabel || undefined,
+    price: item.unitPesos ?? undefined,
+    quantity: item.quantity,
+  }));
+
   return (
     <div className="cart-layout">
+      <TrackViewCart currency="COP" value={totals.pricedSubtotal ?? null} items={analyticsItems} />
       <div className="cart-main">
         <header className="cart-page-head">
           <div className="cart-page-head-row">
@@ -198,6 +208,19 @@ function CarritoBody({
                       className="quiet cart-remove"
                       type="button"
                       onClick={() => {
+                        emitRemoveFromCart({
+                          currency: "COP",
+                          value: item.unitPesos == null ? null : item.unitPesos * item.quantity,
+                          items: [
+                            {
+                              item_id: item.sku || item.productId,
+                              item_name: item.name,
+                              item_variant: item.variantLabel || undefined,
+                              price: item.unitPesos ?? undefined,
+                              quantity: item.quantity,
+                            },
+                          ],
+                        });
                         cart.remove(item.productId, item.variantId);
                         setAnnounce(`${item.name} eliminado del carrito`);
                       }}
@@ -282,7 +305,10 @@ function CarritoBody({
           <a
             className="btn cart-summary-primary"
             href={href}
-            onClick={() => trackEventAction("cart_send", "/carrito")}
+            onClick={() => {
+              void trackEventAction("cart_send", "/carrito");
+              emitContactWhatsapp("cart");
+            }}
           >
             Enviar selección por WhatsApp
           </a>

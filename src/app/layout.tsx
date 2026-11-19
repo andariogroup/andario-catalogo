@@ -47,6 +47,9 @@ export async function generateMetadata(): Promise<Metadata> {
         title,
         ...(description ? { description } : {}),
         url: "/",
+        type: "website",
+        locale: "es_CO",
+        siteName: name,
         ...(image ? { images: [image] } : {}),
       },
       ...(shell.settings.indexable ? {} : { robots: { index: false, follow: false } }),
@@ -68,7 +71,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const fontClass =
     font === "newsreader" ? `${newsreader.variable} ${sourceSans.variable}` : `${fraunces.variable} ${outfit.variable}`;
   return (
-    <html lang="es" data-font={font} data-scroll-behavior="smooth" className={fontClass}>
+    <html lang="es-CO" data-font={font} data-scroll-behavior="smooth" className={fontClass}>
       <body style={{ fontFamily: font === "newsreader" ? "var(--font-source)" : "var(--font-outfit)" }}>{children}</body>
     </html>
   );

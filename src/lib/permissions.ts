@@ -12,6 +12,7 @@ export const MODULES = [
   "quotes",
   "analytics",
   "seo",
+  "integrations",
   "settings",
 ] as const;
 export type AppModule = (typeof MODULES)[number];
@@ -31,6 +32,7 @@ const MATRIX: Record<Role, Record<AppModule, Access>> = {
     quotes: "manage",
     analytics: "manage",
     seo: "manage",
+    integrations: "manage",
     settings: "manage",
   },
   catalog: {
@@ -44,6 +46,7 @@ const MATRIX: Record<Role, Record<AppModule, Access>> = {
     quotes: "none",
     analytics: "limited",
     seo: "none",
+    integrations: "none",
     settings: "none",
   },
   marketing: {
@@ -57,6 +60,7 @@ const MATRIX: Record<Role, Record<AppModule, Access>> = {
     quotes: "none",
     analytics: "read",
     seo: "write",
+    integrations: "write",
     settings: "none",
   },
   commercial: {
@@ -70,6 +74,7 @@ const MATRIX: Record<Role, Record<AppModule, Access>> = {
     quotes: "manage",
     analytics: "read",
     seo: "none",
+    integrations: "none",
     settings: "none",
   },
 };

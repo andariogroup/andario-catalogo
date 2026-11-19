@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { useActionState } from "react";
 import { createQuoteAction } from "@/actions/quotes";
 import { trackEventAction } from "@/actions/events";
+import { emitAddToCart, emitContactWhatsapp, TrackViewItem } from "@/components/consent/analytics-hooks";
 import { emptyForm } from "@/lib/form";
 import { cartEligible } from "@/lib/cart";
 import {
@@ -224,6 +225,19 @@ export function FichaCompra({
       });
       setCartNote("Producto agregado al carrito");
       void trackEventAction("cart_add", url, product.id);
+      emitAddToCart({
+        currency: "COP",
+        value: unitPesos == null ? null : unitPesos * quantity,
+        items: [
+          {
+            item_id: sku || product.id,
+            item_name: product.name,
+            item_variant: variantLabel || undefined,
+            price: unitPesos ?? undefined,
+            quantity,
+          },
+        ],
+      });
     } finally {
       // Sin espera artificial: el guard `adding` evita doble clic en el mismo turno.
       queueMicrotask(() => setAdding(false));
@@ -232,6 +246,19 @@ export function FichaCompra({
 
   return (
     <div className="ficha-buy">
+      <TrackViewItem
+        currency="COP"
+        value={product.priceMode === "ask" || unit == null || !Number.isFinite(unit as number) ? null : Number(unit)}
+        items={[
+          {
+            item_id: sku || product.id,
+            item_name: product.name,
+            item_variant: variantLabel || undefined,
+            price: product.priceMode === "ask" || unit == null || !Number.isFinite(unit as number) ? undefined : Number(unit),
+            quantity: 1,
+          },
+        ]}
+      />
       <nav className="ficha-crumbs" aria-label="Ubicación">
         <ol>
           <li>
@@ -375,7 +402,10 @@ export function FichaCompra({
           <a
             className="btn ficha-cta-primary"
             href={href}
-            onClick={() => trackEventAction("whatsapp_click", url, product.id)}
+            onClick={() => {
+              void trackEventAction("whatsapp_click", url, product.id);
+              emitContactWhatsapp("product", { id: product.id, name: product.name });
+            }}
           >
             {product.priceMode === "ask" ? "Consultar precio por WhatsApp" : "Consultar por WhatsApp"}
           </a>
@@ -438,7 +468,10 @@ export function FichaCompra({
           <a
             className="quiet"
             href={href}
-            onClick={() => trackEventAction("whatsapp_click", url, product.id)}
+            onClick={() => {
+              void trackEventAction("whatsapp_click", url, product.id);
+              emitContactWhatsapp("product_secondary", { id: product.id, name: product.name });
+            }}
           >
             Consultar por WhatsApp
           </a>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CatalogFilters, type CatalogFacets } from "@/components/catalog/catalog-filters";
 import { CatalogSortSelect } from "@/components/catalog/catalog-sort";
 import { ProductCard } from "@/components/catalog/product-card";
+import { TrackViewItemList } from "@/components/consent/analytics-hooks";
 import {
   catalogActiveFilterCount,
   catalogActiveFilters,
@@ -82,6 +83,16 @@ export function CatalogView({
 
   return (
     <main className={`wrap section catalog-page layout-${layout}`}>
+      <TrackViewItemList
+        itemListId={selectedCategory?.id || "catalogo"}
+        itemListName={heading}
+        items={cards.map((card) => ({
+          item_id: card.product.id,
+          item_name: card.product.name,
+          price: card.product.pricePesos == null ? undefined : Number(card.product.pricePesos),
+          quantity: 1,
+        }))}
+      />
       {showCrumbs && crumbParent ? (
         <nav className="catalog-crumbs" aria-label="Ubicación en el catálogo">
           <ol>

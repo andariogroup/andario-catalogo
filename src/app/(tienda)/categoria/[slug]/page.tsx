@@ -14,9 +14,24 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const [category] = db ? await db.select().from(categories).where(eq(categories.slug, slug)).limit(1) : [];
   if (!category || category.status !== "active" || category.parentId) notFound();
   const shell = await loadShell().catch(() => null);
-  const title = titled(category.seoTitle || category.name, shell?.business.name ?? "");
+  const brand = shell?.business.name?.trim() ?? "";
+  const rawTitle = category.seoTitle || category.name;
+  const title = titled(rawTitle, brand);
   const description = category.seoDescription || category.description || undefined;
-  return { title, description, alternates: { canonical: `/categoria/${slug}` } };
+  const path = `/categoria/${slug}`;
+  const ogTitle = typeof title === "object" ? title.absolute : brand ? `${rawTitle} · ${brand}` : rawTitle;
+  return {
+    title,
+    description,
+    alternates: { canonical: path },
+    openGraph: {
+      title: ogTitle,
+      ...(description ? { description } : {}),
+      url: path,
+      type: "website",
+      ...(brand ? { siteName: brand } : {}),
+    },
+  };
 }
 
 export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {

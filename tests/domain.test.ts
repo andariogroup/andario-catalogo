@@ -132,9 +132,12 @@ describe("permisos", () => {
     expect(allows("catalog", "analytics", "limited")).toBe(true);
     expect(allows("catalog", "analytics", "read")).toBe(false);
     expect(allows("marketing", "seo", "write")).toBe(true);
+    expect(allows("marketing", "integrations", "write")).toBe(true);
     expect(allows("marketing", "brand", "write")).toBe(false);
     expect(allows("admin", "users", "manage")).toBe(true);
+    expect(allows("admin", "integrations", "manage")).toBe(true);
     expect(allows("commercial", "users", "read")).toBe(false);
+    expect(allows("catalog", "integrations", "read")).toBe(false);
   });
 });
 
@@ -617,13 +620,43 @@ describe("seo", () => {
     expect(publicUrlProblem("https://catalogo.ejemplo/tienda")).toMatch(/dominio/);
     expect(catalogOrigin("")).toMatch(/^https?:\/\//);
     expect(catalogOrigin("https://catalogo.ejemplo")).toBe("https://catalogo.ejemplo");
+    expect(publicUrlProblem("https://www.trinitarias.co")).toBe("");
+    expect(publicUrlProblem("https://www.trinitarias.co/")).toBe("");
+    expect(catalogOrigin("https://www.trinitarias.co")).toBe("https://www.trinitarias.co");
+    expect(catalogOrigin("https://www.trinitarias.co/")).toBe("https://www.trinitarias.co");
+    const store = organizationJsonLd({
+      name: "TRINITARIAS",
+      url: "https://www.trinitarias.co",
+      city: "Valledupar",
+      region: "Cesar",
+      country: "CO",
+      phone: "",
+      image: "",
+    });
+    expect(store).toMatchObject({ "@type": "LocalBusiness", name: "TRINITARIAS", url: "https://www.trinitarias.co" });
     expect(titled("Bolso | Tiendaya", "Tiendaya")).toEqual({ absolute: "Bolso | Tiendaya" });
     expect(titled("Bolsos", "Tiendaya")).toBe("Bolsos");
+    expect(titled("Bolso Aitana", "TRINITARIAS")).toBe("Bolso Aitana");
+    expect(titled("Bolso | TRINITARIAS", "TRINITARIAS")).toEqual({ absolute: "Bolso | TRINITARIAS" });
     const ask = productJsonLd({ name: "Servicio", description: "Asesoría", sku: "S1", image: [], url: "https://catalogo.ejemplo/producto/servicio", price: null, priceMode: "ask", availability: "available", kind: "service", store: "Andario" });
     expect(ask.offers).toBeUndefined();
     expect(ask["@type"]).toBe("Service");
     const product = productJsonLd({ name: "Camisa", description: "Lino", sku: "C1", image: ["https://res.cloudinary.com/demo/image.jpg"], url: "https://catalogo.ejemplo/producto/camisa", price: 80000, priceMode: "fixed", availability: "sold_out", kind: "physical", store: "Andario" });
     expect(product.offers).toMatchObject({ price: "80000", availability: "https://schema.org/OutOfStock" });
+    const branded = productJsonLd({
+      name: "Bolso",
+      description: "Accesorio",
+      sku: "B1",
+      image: [],
+      url: "https://www.trinitarias.co/producto/bolso",
+      price: 10000,
+      priceMode: "fixed",
+      availability: "available",
+      kind: "physical",
+      store: "TRINITARIAS",
+    });
+    expect(branded.brand).toEqual({ "@type": "Brand", name: "TRINITARIAS" });
+    expect(JSON.stringify(branded)).not.toMatch(/Tiendaya/i);
     const crumbs = breadcrumbJsonLd([{ name: "Inicio", url: "https://catalogo.ejemplo" }]);
     expect(crumbs["@type"]).toBe("BreadcrumbList");
   });

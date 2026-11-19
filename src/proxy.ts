@@ -31,8 +31,14 @@ function withSecurity(request: NextRequest, response: NextResponse) {
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-  const scriptSrc = isProd ? "script-src 'self' 'unsafe-inline'" : "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
-  response.headers.set("Content-Security-Policy", `default-src 'self'; img-src 'self' https: blob: data:; media-src 'self' https:; style-src 'self' 'unsafe-inline'; font-src 'self' https:; ${scriptSrc}; connect-src 'self' https:; frame-src https://www.google.com https://maps.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`);
+  // GTM/GA4 solo se cargan tras consentimiento en la tienda pública (ver GtmLoader).
+  const scriptSrc = isProd
+    ? "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com"
+    : "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com";
+  response.headers.set(
+    "Content-Security-Policy",
+    `default-src 'self'; img-src 'self' https: blob: data:; media-src 'self' https:; style-src 'self' 'unsafe-inline'; font-src 'self' https:; ${scriptSrc}; connect-src 'self' https:; frame-src https://www.google.com https://maps.google.com https://www.googletagmanager.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`,
+  );
   if (isProd) response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   response.headers.set("x-pathname", request.nextUrl.pathname);
   return response;
