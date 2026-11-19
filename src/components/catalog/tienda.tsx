@@ -10,7 +10,7 @@ import { CartNavLink } from "@/components/catalog/cart";
 import { HeaderSearch } from "@/components/catalog/header-search";
 import { ShopMenu, ShopMenuButton, ShopMenuLinks } from "@/components/catalog/shop-nav";
 import { cartStoreId } from "@/lib/cart";
-import { ConsentBanner, CookiePreferencesLink } from "@/components/consent/consent-banner";
+import { ConsentBanner } from "@/components/consent/consent-banner";
 import { ConsentProvider } from "@/components/consent/consent-provider";
 import { AnalyticsPathWatcher, GtmLoader } from "@/components/consent/gtm-loader";
 import { TrackedWhatsAppLink } from "@/components/consent/analytics-hooks";
@@ -183,7 +183,6 @@ export function ShopFrame({
                 <Link key={slug} href={`/politicas/${slug}`}>{label}</Link>
               ))}
               <Link href="/lista">Lista de interés</Link>
-              <CookiePreferencesLink />
             </nav>
             <div>
               <p className="footer-label">Contacto</p>

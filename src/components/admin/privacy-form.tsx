@@ -146,7 +146,7 @@ export function PrivacyConsentStudio({ initial, canEdit }: { initial: PrivacyDra
           <p className="hint">
             {draft.noticeEnabled
               ? "El aviso inicial aparece en la tienda cuando falta una decisión vigente (aunque la medición Google esté apagada)."
-              : "El aviso automático está desactivado; el pie sigue ofreciendo preferencias."}
+              : "El aviso automático está desactivado."}
           </p>
           {draft.updatedAt ? (
             <p className="hint">
