@@ -128,7 +128,12 @@ export default async function HomePage() {
               {section.key === "categories" ? (
                 <div className="home-cats">
                   {homeCategories.map((category) => (
-                    <Link className={category.imageUrl ? "cat-card has-photo" : "cat-card"} key={category.id} href={`/categoria/${category.slug}`}>
+                    <Link
+                      className={category.imageUrl ? "cat-card has-photo" : "cat-card"}
+                      key={category.id}
+                      href={`/categoria/${category.slug}`}
+                      title={category.name}
+                    >
                       {category.imageUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={category.imageUrl} alt="" />

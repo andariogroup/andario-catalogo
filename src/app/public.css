@@ -14,8 +14,19 @@
 .shop .hero-copy { gap: 0.75rem; padding: clamp(4.5rem, 18vh, 8rem) clamp(1.25rem, 4vw, 3rem) 1.75rem; }
 .shop .hero-copy h1 { font-size: clamp(2.75rem, 4.7vw, 4.25rem); line-height: 1; max-width: 14ch; }
 .shop .hero-copy p { font-size: clamp(1rem, 1.6vw, 1.15rem); line-height: 1.45; }
-.shop .home-cats { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.9rem; }
-.shop .cat-card { min-height: 148px; background: color-mix(in srgb, white 72%, var(--paper)); }
+.shop .home-cats { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.9rem; align-items: stretch; }
+.shop .cat-card {
+  min-height: 0;
+  background: color-mix(in srgb, white 72%, var(--paper));
+}
+.shop .cat-card strong {
+  font-size: clamp(1.05rem, 1.4vw, 1.28rem);
+  line-height: 1.15;
+  min-height: calc(1.15em * 2);
+}
+.shop .cat-card img {
+  border-radius: calc(var(--radius) + 2px);
+}
 .shop .piece h3 { font-size: clamp(1.15rem, 1.5vw, 1.35rem); line-height: 1.15; }
 .shop .price { font-size: 1.05rem; }
 .shop .grid.cards { gap: 1.35rem 1rem; }
