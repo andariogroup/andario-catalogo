@@ -327,6 +327,21 @@ export const rateLimits = pgTable("rate_limits", {
   windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
 });
 
+export const marketingPieces = pgTable("marketing_pieces", {
+  id: text("id").primaryKey(),
+  productId: text("product_id").notNull(),
+  channel: text("channel").notNull(),
+  format: text("format").notNull(),
+  template: text("template").notNull(),
+  photoUrl: text("photo_url").notNull().default(""),
+  caption: text("caption").notNull().default(""),
+  cta: text("cta").notNull().default(""),
+  variantId: text("variant_id").notNull().default(""),
+  status: text("status").notNull().default("created"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const auditEvents = pgTable("audit_events", {
   id: text("id").primaryKey(),
   actor: text("actor").notNull(),

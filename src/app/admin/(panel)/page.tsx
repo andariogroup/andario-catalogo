@@ -4,6 +4,7 @@ import { allows } from "@/lib/permissions";
 import { dashboardReport } from "@/lib/store";
 import {
   PRESETS,
+  buildAlerts,
   buildInsights,
   change,
   changeText,
@@ -12,6 +13,7 @@ import {
   funnelSteps,
   hourLabel,
   placementLabel,
+  productFunnels,
   productSignal,
   ratePercent,
   resolveRange,
@@ -68,6 +70,15 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const funnel = funnelSteps(totals);
   const funnelMax = Math.max(1, ...funnel.map((step) => step.count));
   const insights = buildInsights({ totals, products: report.products, searches: report.searches, hours: report.hours, weekdays: report.weekdays });
+  const alerts = buildAlerts({
+    products: report.products,
+    searches: report.searches,
+    totals,
+    openQuotes: report.quotes.openNow,
+    canQuotes,
+  });
+  const funnels = productFunnels(report.products, 8);
+  const funnelViewsPeak = Math.max(1, ...funnels.map((item) => item.views));
   const hasActivity = views + contacts + (totals.catalog_view ?? 0) > 0;
 
   const dayPeak = Math.max(1, ...report.days.flatMap((day) => [day.views, day.contacts]));
@@ -142,6 +153,22 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         </div>
       </section>
 
+      {alerts.length ? (
+        <section aria-labelledby="dash-alertas">
+          <h2 id="dash-alertas">Para actuar hoy</h2>
+          <div className="dash-alerts">
+            {alerts.map((alert) => (
+              <article className={`dash-alert dash-alert-${alert.tone}`} key={alert.id}>
+                <span className={`dash-tag dash-tag-${alert.tone}`}>{alert.tone === "good" ? "Oportunidad" : alert.tone === "warn" ? "Atención" : "Aviso"}</span>
+                <h3>{alert.title}</h3>
+                <p>{alert.detail}</p>
+                {alert.href ? <p><Link href={alert.href}>{alert.hrefLabel || "Abrir"}</Link></p> : null}
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       {hasActivity ? (
         <section className="dash-panel" aria-labelledby="dash-insights">
           <h2 id="dash-insights">Qué te dicen los datos</h2>
@@ -168,6 +195,49 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             <b>{step.count}{step.rate == null ? "" : ` · ${step.rate}%`}</b>
           </div>
         ))}
+      </section>
+
+      <section className="dash-panel" aria-labelledby="dash-embudo-producto">
+        <h2 id="dash-embudo-producto">Embudo por producto</h2>
+        <p>Vistas de la ficha, luego quién lo guardó y quién te escribió por WhatsApp desde esa ficha. El porcentaje es sobre las vistas de ese producto.</p>
+        {funnels.length ? (
+          <div className="dash-product-funnels">
+            {funnels.map((item) => {
+              const signal = SIGNALS[item.signal];
+              return (
+                <article className="dash-product-funnel" key={item.id}>
+                  <header className="dash-product-funnel-head">
+                    <div className="dash-product">
+                      <Link href={`/admin/productos/${item.id}`}>{item.name}</Link>
+                      <a className="dash-quiet-link" href={`/producto/${item.slug}`} target="_blank" rel="noreferrer">Ver ficha</a>
+                    </div>
+                    <span className={`dash-tag dash-tag-${signal.tone}`}>{signal.text}</span>
+                  </header>
+                  <div className="dash-row dash-funnel">
+                    <span>Vistas</span>
+                    <span className="dash-bar"><span style={{ width: `${(item.views / funnelViewsPeak) * 100}%` }} /></span>
+                    <b>{item.views}</b>
+                  </div>
+                  <div className="dash-row dash-funnel">
+                    <span>Guardados</span>
+                    <span className="dash-bar"><span className="dash-bar-saved" style={{ width: `${item.views ? (item.saved / item.views) * 100 : 0}%` }} /></span>
+                    <b>{item.saved}{item.saveRate == null ? "" : ` · ${item.saveRate}%`}</b>
+                  </div>
+                  <div className="dash-row dash-funnel">
+                    <span>Consultas</span>
+                    <span className="dash-bar"><span className="dash-bar-contacts" style={{ width: `${item.views ? (item.contacts / item.views) * 100 : 0}%` }} /></span>
+                    <b>{item.contacts}{item.contactRate == null ? "" : ` · ${item.contactRate}%`}</b>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <p>Todavía no hay fichas con actividad en este rango.</p>
+        )}
+        {report.products.length > funnels.length ? (
+          <p className="dash-hint">Mostrando {funnels.length} de {report.products.length} productos activos con movimiento.</p>
+        ) : null}
       </section>
 
       <section className="dash-panel" aria-labelledby="dash-dias">

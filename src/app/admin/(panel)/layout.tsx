@@ -13,6 +13,7 @@ const links = [
   { href: "/admin/atributos", label: "Atributos y variantes", module: "attributes" as const, needed: "read" as const },
   { href: "/admin/multimedia", label: "Multimedia", module: "media" as const, needed: "read" as const },
   { href: "/admin/cotizaciones", label: "Cotizaciones", module: "quotes" as const, needed: "read" as const },
+  { href: "/admin/promocionar", label: "Promocionar", module: "promos" as const, needed: "read" as const },
   { href: "/admin/seo", label: "SEO y configuración", module: "seo" as const, needed: "read" as const },
   { href: "/admin/integraciones/google", label: "Google", module: "integrations" as const, needed: "read" as const },
   { href: "/admin/integraciones/privacidad", label: "Privacidad y cookies", module: "integrations" as const, needed: "read" as const },

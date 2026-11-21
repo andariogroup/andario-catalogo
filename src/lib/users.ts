@@ -12,8 +12,8 @@ export type UserCard = {
 
 export const ROLE_OPTIONS: { value: Role; label: string; hint: string }[] = [
   { value: "admin", label: "Administrador", hint: "Todo el panel, incluido usuarios y ajustes." },
-  { value: "catalog", label: "Gestor de catálogo", hint: "Categorías, productos, atributos y multimedia." },
-  { value: "marketing", label: "Marketing", hint: "Inicio, multimedia, SEO y lectura del catálogo." },
+  { value: "catalog", label: "Gestor de catálogo", hint: "Categorías, productos, atributos, multimedia y piezas para redes." },
+  { value: "marketing", label: "Marketing", hint: "Inicio, multimedia, SEO, piezas para redes y lectura del catálogo." },
   { value: "commercial", label: "Asesor comercial", hint: "Cotizaciones y lectura del catálogo." },
 ];
 

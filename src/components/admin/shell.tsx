@@ -11,7 +11,7 @@ const GROUPS = [
   { label: "Inicio", hrefs: ["/admin"] },
   { label: "Negocio", hrefs: ["/admin/negocio", "/admin/apariencia", "/admin/inicio"] },
   { label: "Catálogo", hrefs: ["/admin/categorias", "/admin/productos", "/admin/atributos", "/admin/multimedia"] },
-  { label: "Gestión", hrefs: ["/admin/cotizaciones", "/admin/seo", "/admin/usuarios"] },
+  { label: "Gestión", hrefs: ["/admin/cotizaciones", "/admin/promocionar", "/admin/seo", "/admin/usuarios"] },
 ];
 
 function current(pathname: string, href: string) {

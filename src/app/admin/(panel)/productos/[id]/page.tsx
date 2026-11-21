@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { asc, eq, inArray } from "drizzle-orm";
 import { DeleteProduct, ProductExtras, ProductForm } from "@/components/admin/productos-form";
@@ -61,6 +62,9 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
       <p>Catálogo</p>
       <h1>{product.name}</h1>
       <p className="lead">Esta ficha corresponde solo a este producto. Al guardar vuelves a la lista.</p>
+      {allows(user.role, "promos", "write") && product.status === "active" ? (
+        <p><Link className="btn" href={`/admin/promocionar/nueva?producto=${product.id}`}>Promocionar</Link></p>
+      ) : null}
       <ProductForm product={draft} categories={categoryNodes(lists.categories)} canWrite={allows(user.role, "products", "write")} />
       {canWrite ? (
         <ProductExtras

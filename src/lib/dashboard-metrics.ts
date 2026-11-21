@@ -255,7 +255,6 @@ export function sourceLabel(source: string): string {
     pinterest: "Pinterest",
     youtube: "YouTube",
     qr: "Código QR",
-    interno: "Navegación dentro del catálogo",
   };
   return names[source] ?? source;
 }
@@ -336,4 +335,158 @@ export function buildInsights(input: InsightInput): string[] {
     out.push(`${star.name} es el que mejor convierte vistas en consultas (${star.contacts} ${star.contacts === 1 ? "consulta" : "consultas"} por ${star.views} vistas). Destácalo.`);
   }
   return out;
+}
+
+export type ProductRow = {
+  id: string;
+  name: string;
+  slug: string;
+  featured: boolean;
+  views: number;
+  contacts: number;
+  saved: number;
+};
+
+export type ProductFunnel = ProductRow & {
+  saveRate: number | null;
+  contactRate: number | null;
+  signal: ProductSignal;
+};
+
+/**
+ * Embudo de un producto: vistas → guardados → consultas.
+ * Los porcentajes se calculan sobre las vistas de esa ficha (no sobre el total de la tienda).
+ */
+export function productFunnel(product: ProductRow): ProductFunnel {
+  return {
+    ...product,
+    saveRate: ratePercent(product.saved, product.views),
+    contactRate: ratePercent(product.contacts, product.views),
+    signal: productSignal(product.views, product.contacts, product.saved),
+  };
+}
+
+/** Productos con actividad, listos para pintar el embudo (máximo `limit`). */
+export function productFunnels(products: ProductRow[], limit = 8): ProductFunnel[] {
+  return products
+    .filter((item) => item.views > 0 || item.contacts > 0 || item.saved > 0)
+    .slice(0, limit)
+    .map(productFunnel);
+}
+
+export type DashboardAlert = {
+  id: string;
+  tone: "warn" | "good" | "idle";
+  title: string;
+  detail: string;
+  href?: string;
+  hrefLabel?: string;
+};
+
+/**
+ * Alertas accionables: solo lo que el dueño puede corregir hoy.
+ * Se priorizan las que más afectan las ventas (vistas sin consulta, sin tráfico, búsquedas vacías).
+ */
+export function buildAlerts(input: {
+  products: ProductRow[];
+  searches: { term: string; total: number; empty: number }[];
+  totals: EventCounts;
+  openQuotes: number;
+  canQuotes: boolean;
+}): DashboardAlert[] {
+  const alerts: DashboardAlert[] = [];
+  const views = input.totals.product_view ?? 0;
+  const contacts = contactCount(input.totals);
+
+  const unseen = input.products.filter((item) => item.views === 0);
+  if (unseen.length) {
+    const names = listNames(unseen.slice(0, 3).map((item) => item.name));
+    alerts.push({
+      id: "unseen",
+      tone: "warn",
+      title: unseen.length === 1 ? "1 producto activo sin vistas" : `${unseen.length} productos activos sin vistas`,
+      detail:
+        unseen.length === 1
+          ? `${names} no apareció en ninguna ficha en este rango. Compártelo o destácalo en la portada.`
+          : `Entre ellos: ${names}. Compártelos o destácalos en la portada.`,
+      href: "/admin/productos",
+      hrefLabel: "Ver productos",
+    });
+  }
+
+  const idle = input.products.filter((item) => productSignal(item.views, item.contacts, item.saved) === "views-no-contact").slice(0, 3);
+  if (idle.length) {
+    const first = idle[0];
+    alerts.push({
+      id: "views-no-contact",
+      tone: "warn",
+      title: idle.length === 1 ? "Se ve, pero nadie pregunta" : `${idle.length} productos se ven y nadie pregunta`,
+      detail: `${listNames(idle.map((item) => item.name))}: revisa foto, precio y el mensaje de WhatsApp.`,
+      href: `/admin/productos/${first.id}`,
+      hrefLabel: "Abrir el primero",
+    });
+  }
+
+  const savedOnly = input.products.filter((item) => productSignal(item.views, item.contacts, item.saved) === "saved-only").slice(0, 3);
+  if (savedOnly.length) {
+    const first = savedOnly[0];
+    alerts.push({
+      id: "saved-only",
+      tone: "warn",
+      title: savedOnly.length === 1 ? "Lo guardan, pero no te escriben" : "Los guardan, pero no te escriben",
+      detail: `${listNames(savedOnly.map((item) => item.name))}: hay interés; empuja el contacto desde la ficha o el carrito.`,
+      href: `/admin/productos/${first.id}`,
+      hrefLabel: "Revisar ficha",
+    });
+  }
+
+  const star = input.products
+    .filter((item) => item.contacts > 0 && item.views >= MIN_VIEWS_FOR_ADVICE)
+    .sort((a, b) => b.contacts / Math.max(1, b.views) - a.contacts / Math.max(1, a.views))[0];
+  if (star && !star.featured) {
+    alerts.push({
+      id: "star-not-featured",
+      tone: "good",
+      title: "Tu mejor producto no está destacado",
+      detail: `${star.name} convierte vistas en consultas y no figura como destacado en la portada.`,
+      href: `/admin/productos/${star.id}`,
+      hrefLabel: "Destacarlo",
+    });
+  }
+
+  const missed = input.searches.filter((item) => item.empty > 0).sort((a, b) => b.empty - a.empty).slice(0, 3);
+  if (missed.length) {
+    alerts.push({
+      id: "missed-search",
+      tone: "warn",
+      title: missed.length === 1 ? "Buscaron algo que no tienes" : "Buscaron cosas que no encontraste",
+      detail: `Sin resultados: ${listNames(missed.map((item) => `«${item.term}»`))}. Puede ser un producto nuevo o un nombre distinto al tuyo.`,
+      href: "/admin/productos/nueva",
+      hrefLabel: "Agregar producto",
+    });
+  }
+
+  if (input.canQuotes && input.openQuotes > 0) {
+    alerts.push({
+      id: "open-quotes",
+      tone: "warn",
+      title: input.openQuotes === 1 ? "1 cotización por atender" : `${input.openQuotes} cotizaciones por atender`,
+      detail: "Siguen abiertas, de cualquier fecha. Responder rápido cierra más ventas.",
+      href: "/admin/cotizaciones",
+      hrefLabel: "Abrir la cola",
+    });
+  }
+
+  if (views >= MIN_VIEWS_FOR_ADVICE && contacts === 0) {
+    alerts.push({
+      id: "no-contacts",
+      tone: "warn",
+      title: "Hay vistas y cero consultas",
+      detail: `${views} fichas vistas en el rango y nadie pidió hablar. Revisa precio, fotos y el botón de WhatsApp.`,
+      href: "/admin/seo",
+      hrefLabel: "Revisar mensaje de WhatsApp",
+    });
+  }
+
+  return alerts.slice(0, 6);
 }

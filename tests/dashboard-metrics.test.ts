@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  buildAlerts,
   buildInsights,
   change,
   changeText,
@@ -10,6 +11,8 @@ import {
   funnelSteps,
   hourLabel,
   listDays,
+  productFunnel,
+  productFunnels,
   productSignal,
   ratePercent,
   resolveRange,
@@ -170,6 +173,73 @@ describe("dashboard: lectura por producto", () => {
     expect(sourceLabel("")).toBe("Directo o sin dato");
     expect(sourceLabel("instagram")).toBe("Instagram");
     expect(sourceLabel("newsletter")).toBe("newsletter");
+  });
+});
+
+describe("dashboard: embudo por producto y alertas", () => {
+  const cream = {
+    id: "1",
+    name: "Crema",
+    slug: "crema",
+    featured: false,
+    views: 20,
+    contacts: 0,
+    saved: 0,
+  };
+  const lotion = {
+    id: "2",
+    name: "Loción",
+    slug: "locion",
+    featured: false,
+    views: 10,
+    contacts: 3,
+    saved: 2,
+  };
+
+  it("calcula tasas del embudo sobre las vistas del producto", () => {
+    const funnel = productFunnel(lotion);
+    expect(funnel.saveRate).toBe(20);
+    expect(funnel.contactRate).toBe(30);
+    expect(funnel.signal).toBe("converting");
+    expect(productFunnel(cream).signal).toBe("views-no-contact");
+  });
+
+  it("lista solo productos con actividad y respeta el límite", () => {
+    const idle = { ...cream, id: "3", name: "Jabón", views: 0, contacts: 0, saved: 0 };
+    expect(productFunnels([cream, lotion, idle], 1)).toHaveLength(1);
+    expect(productFunnels([cream, lotion, idle], 1)[0].name).toBe("Crema");
+    expect(productFunnels([cream, lotion, idle], 8).map((item) => item.name)).toEqual(["Crema", "Loción"]);
+  });
+
+  it("arma alertas accionables con enlace", () => {
+    const alerts = buildAlerts({
+      products: [cream, lotion, { ...cream, id: "4", name: "Aceite", views: 0 }],
+      searches: [{ term: "perfume", total: 2, empty: 2 }],
+      totals: { product_view: 30, whatsapp_click: 0, cart_send: 0 },
+      openQuotes: 2,
+      canQuotes: true,
+    });
+    const ids = alerts.map((item) => item.id);
+    expect(ids).toContain("unseen");
+    expect(ids).toContain("views-no-contact");
+    expect(ids).toContain("star-not-featured");
+    expect(ids).toContain("missed-search");
+    expect(ids).toContain("open-quotes");
+    expect(ids).toContain("no-contacts");
+    expect(alerts.find((item) => item.id === "star-not-featured")?.href).toBe("/admin/productos/2");
+    expect(alerts.length).toBeLessThanOrEqual(6);
+  });
+
+  it("no inventa alertas sin datos", () => {
+    expect(
+      buildAlerts({
+        products: [{ ...lotion, featured: true }],
+        searches: [],
+        totals: { product_view: 10, whatsapp_click: 3 },
+        openQuotes: 0,
+        canQuotes: true,
+      }),
+    ).toEqual([]);
   });
 });
 
