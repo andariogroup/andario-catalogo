@@ -93,9 +93,12 @@ function ImagePicker({
     fileRef.current.value = "";
   }, [saved]);
 
-  useEffect(() => {
+  const [syncedCurrent, setSyncedCurrent] = useState(current);
+  // Si ya no hay imagen guardada, se olvida la marca de "quitar".
+  if (syncedCurrent !== current) {
+    setSyncedCurrent(current);
     if (!current) setRemoved(false);
-  }, [current]);
+  }
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -207,11 +210,13 @@ export function AppearanceStudio({ brand, businessName, uploadsReady }: { brand:
   const display = fontPair === "newsreader" ? "var(--font-newsreader)" : "var(--font-fraunces)";
   const colorIssue = COLORS.map((color) => colorProblem(colors[color.name]) ? color.label : "").find(Boolean) || "";
 
-  useEffect(() => {
-    if (pending) return;
+  const [seenState, setSeenState] = useState(state);
+  // Cada respuesta nueva del servidor se muestra como aviso.
+  if (!pending && seenState !== state) {
+    setSeenState(state);
     if (state.error) setNotice({ kind: "bad", text: state.error });
     else if (state.ok) setNotice({ kind: "ok", text: state.ok });
-  }, [pending, state]);
+  }
 
   function setColor(name: keyof typeof colors, value: string) {
     setColors((current) => ({ ...current, [name]: value }));
@@ -291,7 +296,7 @@ export function AppearanceStudio({ brand, businessName, uploadsReady }: { brand:
 
         <fieldset className="panel section-card">
           <legend>Encabezado</legend>
-          <p className="hint">Estas opciones cambian la barra de arriba del catálogo. En el celular, el WhatsApp del encabezado se oculta si también está el botón flotante.</p>
+          <p className="hint">Estas opciones cambian la barra de arriba del catálogo.</p>
           <div className="switch-grid">
             <label className="field check"><input name="showLogo" type="checkbox" checked={showLogo} onChange={(event) => setShowLogo(event.target.checked)} />Mostrar logo</label>
             <label className="field check"><input name="showName" type="checkbox" checked={showName} onChange={(event) => setShowName(event.target.checked)} />Mostrar nombre</label>

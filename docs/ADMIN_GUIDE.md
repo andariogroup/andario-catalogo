@@ -11,7 +11,7 @@ Entras en `/admin/login`. La pantalla dice Andario Catálogo. Después del ingre
 - Atributos y variantes: el atributo es del catálogo. La variante se arma en la ficha del producto con opciones.
 - Multimedia: lista lo subido. La carga ocurre al guardar producto, marca o inicio.
 - Cotizaciones: quien tiene permiso abre el detalle, cambia el estado, escribe una nota interna y abre WhatsApp.
-- SEO y configuración: metadatos, URL pública https, indexación, textos de WhatsApp, botón flotante, políticas y QR de la portada.
+- SEO y configuración: metadatos, URL pública https, indexación, textos de WhatsApp, políticas y QR de la portada.
 - Usuarios: alta, edición, rol, activación y clave nueva (10+ caracteres con letras y número; confirmar clave). Muestra el último acceso. Cambiar la clave cierra las otras sesiones de esa cuenta.
 
 El favicon público usa la URL guardada en la marca cuando existe.

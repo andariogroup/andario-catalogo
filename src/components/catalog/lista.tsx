@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import { createQuoteAction } from "@/actions/quotes";
-import { trackEventAction } from "@/actions/events";
+import { sendEvent } from "@/lib/track-client";
 import { emptyForm } from "@/lib/form";
 import { quoteLineProblem } from "@/lib/quotes";
 import { listAsk, whatsappHref } from "@/lib/whatsapp";
@@ -121,7 +121,7 @@ function ListaBody({
         </article>
       ))}
       {href && interest.items.length ? (
-        <a className="btn" href={href} onClick={() => trackEventAction("interest_list_send", "/lista")}>
+        <a className="btn" href={href} onClick={() => sendEvent("interest_list_send", "/lista")}>
           Consultar la lista por WhatsApp
         </a>
       ) : null}

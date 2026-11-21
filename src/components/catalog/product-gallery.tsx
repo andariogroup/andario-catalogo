@@ -12,9 +12,6 @@ export function ProductGallery({ name, photos }: { name: string; photos: { url: 
   const current = photos[index] ?? photos[0];
   const multi = fichaShowGalleryControls(photos.length);
 
-  useEffect(() => {
-    setIndex(0);
-  }, [photos]);
 
   useEffect(() => {
     const dialog = dialogRef.current;

@@ -5,8 +5,11 @@ import { and, eq } from "drizzle-orm";
 import { ProductCard } from "@/components/catalog/product-card";
 import { getDb } from "@/lib/db";
 import { categories, products } from "@/lib/db/schema";
-import { titled } from "@/lib/seo";
-import { loadShell, productPhotos, recordEvent, redirectTarget } from "@/lib/store";
+import { JsonLd } from "@/components/shared/json-ld";
+import { breadcrumbJsonLd, catalogOrigin, categorySeoTitle, clip, collectionJsonLd, pageOpenGraph, titled } from "@/lib/seo";
+import { loadShell, productFirstPhotos, redirectTarget } from "@/lib/store";
+import { trackView } from "@/lib/events";
+import { queryValue } from "@/lib/event-guards";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string; child: string }> }): Promise<Metadata> {
   const { slug, child } = await params;
@@ -21,26 +24,20 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   }
   const shell = await loadShell().catch(() => null);
   const brand = shell?.business.name?.trim() ?? "";
-  const rawTitle = category.seoTitle || category.name;
+  const rawTitle = categorySeoTitle(category.name, category.seoTitle);
   const title = titled(rawTitle, brand);
-  const description = category.seoDescription || category.description || undefined;
+  const description = clip(category.seoDescription || category.description || "", 160) || undefined;
   const path = `/categoria/${slug}/${child}`;
   const ogTitle = typeof title === "object" ? title.absolute : brand ? `${rawTitle} · ${brand}` : rawTitle;
   return {
     title,
     description,
     alternates: { canonical: path },
-    openGraph: {
-      title: ogTitle,
-      ...(description ? { description } : {}),
-      url: path,
-      type: "website",
-      ...(brand ? { siteName: brand } : {}),
-    },
+    openGraph: pageOpenGraph({ title: ogTitle, description, path, brand, image: category.imageUrl || shell?.brand.socialImageUrl || shell?.brand.logoUrl }),
   };
 }
 
-export default async function ChildCategoryPage({ params }: { params: Promise<{ slug: string; child: string }> }) {
+export default async function ChildCategoryPage({ params, searchParams }: { params: Promise<{ slug: string; child: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { slug, child } = await params;
   const path = `/categoria/${slug}/${child}`;
   const db = getDb();
@@ -54,14 +51,33 @@ export default async function ChildCategoryPage({ params }: { params: Promise<{ 
     if (target) permanentRedirect(target);
     notFound();
   }
-  await recordEvent("category_view", path);
+  await trackView("category_view", path, undefined, queryValue((await searchParams).utm_source));
   const shell = await loadShell().catch(() => null);
   const items = (await db.select().from(products).where(eq(products.categoryId, category.id))).filter((item) => item.status === "active");
-  const cards = await Promise.all(items.map(async (item) => ({ item, photo: (await productPhotos(item.id))[0]?.url ?? "" })));
+  const firstPhotos = await productFirstPhotos(items.map((item) => item.id));
+  const cards = items.map((item) => ({ item, photo: firstPhotos.get(item.id)?.url ?? "" }));
   const symbol = shell?.business.currencySymbol ?? "$";
+  const origin = catalogOrigin(shell?.settings.publicUrl ?? "");
+  const pageUrl = `${origin}${path}`;
 
   return (
     <main className="wrap section catalog-page">
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: shell?.business.name || "Inicio", url: origin },
+          { name: "Catálogo", url: `${origin}/catalogo` },
+          { name: parent.name, url: `${origin}/categoria/${parent.slug}` },
+          { name: category.name, url: pageUrl },
+        ])}
+      />
+      <JsonLd
+        data={collectionJsonLd({
+          name: category.name,
+          description: clip(category.seoDescription || category.description || "", 160) || undefined,
+          url: pageUrl,
+          items: cards.map(({ item }) => ({ name: item.name, url: `${origin}/producto/${item.slug}` })),
+        })}
+      />
       <header className="catalog-head">
         <div className="catalog-head-copy">
           <h1>{category.name}</h1>

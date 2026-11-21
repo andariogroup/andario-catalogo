@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import { deleteMediaAction, replaceMediaAction, updateMediaAltAction } from "@/actions/catalog";
 import { emptyForm, type FormState } from "@/lib/form";
-import type { LibraryItem, LibraryUse } from "@/lib/library";
+import type { LibraryItem } from "@/lib/library";
 
 const PAGE_SIZES = [8, 16, 24] as const;
 

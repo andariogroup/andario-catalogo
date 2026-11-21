@@ -70,10 +70,12 @@ export function fichaPrimaryAction(input: { hasWhatsApp: boolean; soldOut: boole
 }
 
 /**
- * CTA primario comercial según capacidades.
- * - Agotado → WhatsApp o cotización (si hay canal).
- * - Precio a consultar (`ask`) → consulta (WA) o cotización; el carrito queda secundario si aplica.
- * - Resto elegible → carrito (botón disabled si faltan variantes).
+ * CTA primario comercial según capacidades del negocio (sin config admin nueva).
+ * - Agotado → cotización (canal estructurado; no promete entrega).
+ * - WhatsApp configurado → pedido asistido por WhatsApp (canal comercial principal cuando existe).
+ * - Precio a consultar sin WhatsApp → cotización.
+ * - Sin WhatsApp y carrito elegible → carrito.
+ * - Resto → cotización.
  */
 export function fichaConversionPrimary(input: {
   cartEligible: boolean;
@@ -85,15 +87,37 @@ export function fichaConversionPrimary(input: {
   if (input.soldOut) {
     return fichaPrimaryAction({ hasWhatsApp: input.hasWhatsApp, soldOut: true });
   }
+  if (input.hasWhatsApp) return "whatsapp" as const;
   const priceMode = (input.priceMode ?? "").trim().toLowerCase();
-  if (priceMode === "ask") {
-    return fichaPrimaryAction({ hasWhatsApp: input.hasWhatsApp, soldOut: false });
-  }
+  if (priceMode === "ask") return "quote" as const;
   if (input.cartEligible) return "cart" as const;
-  return fichaPrimaryAction({ hasWhatsApp: input.hasWhatsApp, soldOut: false });
+  return "quote" as const;
 }
 
-/** Acciones secundarias visibles sin competir con el CTA filled. */
+/** Etiqueta del CTA de WhatsApp según modalidad de precio. */
+export function fichaWhatsAppCtaLabel(priceMode?: string) {
+  const mode = (priceMode ?? "").trim().toLowerCase();
+  if (mode === "ask") return "Consultar precio por WhatsApp";
+  return "Pedir por WhatsApp";
+}
+
+/** Nota breve bajo los CTA: aclara que no hay compra/pago cerrado. */
+export function fichaCommerceSupportNote(input: {
+  primary: "cart" | "whatsapp" | "quote";
+  store: string;
+}) {
+  if (input.primary === "whatsapp") {
+    return "Te confirmamos disponibilidad, envío y valor final antes de finalizar tu pedido.";
+  }
+  return `No es un pago en línea: envías una solicitud y ${input.store} te confirma.`;
+}
+
+/**
+ * Acciones secundarias / terciarias sin competir con el CTA filled.
+ * - Carrito: visible como CTA outline cuando WhatsApp (u otro canal) es primario.
+ * - Cotización: flujo distinto (formulario → solicitud en panel); no duplica el chat.
+ * - WhatsApp secundario: solo si el primario no es WhatsApp pero el canal existe.
+ */
 export function fichaSecondaryActions(input: {
   primary: "cart" | "whatsapp" | "quote";
   cartEligible: boolean;
@@ -101,11 +125,9 @@ export function fichaSecondaryActions(input: {
   soldOut: boolean;
   priceMode?: string;
 }) {
-  const priceMode = (input.priceMode ?? "").trim().toLowerCase();
   const showQuote = input.primary !== "quote" && !input.soldOut;
   const showWhatsApp = input.primary !== "whatsapp" && input.hasWhatsApp && !input.soldOut;
-  const showCart =
-    input.primary !== "cart" && input.cartEligible && !input.soldOut && priceMode === "ask";
+  const showCart = input.primary !== "cart" && input.cartEligible && !input.soldOut;
   return { showQuote, showWhatsApp, showCart };
 }
 

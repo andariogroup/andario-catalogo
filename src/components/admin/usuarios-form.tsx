@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, useSyncExternalStore } from "react";
 import { saveUserAction } from "@/actions/users";
 import { BoundForm } from "@/components/admin/form";
 import {
@@ -12,6 +12,11 @@ import {
   type UserCard,
 } from "@/lib/users";
 import type { Role } from "@/lib/permissions";
+
+// La hora solo existe en el navegador; en el servidor es null para que la hidratación coincida.
+const subscribeNever = () => () => {};
+const minuteSnapshot = () => Math.floor(Date.now() / 60_000) * 60_000;
+const serverSnapshot = () => null;
 
 type StatusFilter = "all" | "active" | "inactive";
 type RoleFilter = "all" | Role;
@@ -28,12 +33,9 @@ export function UsersStudio({ users, currentUserId }: { users: UserCard[]; curre
   const [inviting, setInviting] = useState(false);
   const [inviteRole, setInviteRole] = useState<Role>("commercial");
   const [flash, setFlash] = useState("");
-  const [now, setNow] = useState<Date | null>(null);
+  const nowMs = useSyncExternalStore(subscribeNever, minuteSnapshot, serverSnapshot);
+  const now = nowMs === null ? null : new Date(nowMs);
   const inviteTriggerId = useId();
-
-  useEffect(() => {
-    setNow(new Date());
-  }, []);
 
   useEffect(() => {
     if (!flash) return;

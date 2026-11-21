@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
-import { eq } from "drizzle-orm";
 import { FichaVista } from "@/components/catalog/ficha";
 import { JsonLd } from "@/components/shared/json-ld";
-import { getDb } from "@/lib/db";
-import { categories } from "@/lib/db/schema";
 import { cartStoreId } from "@/lib/cart";
-import { clip, breadcrumbJsonLd, catalogOrigin, productJsonLd, titled } from "@/lib/seo";
-import { getActiveProduct, loadShell, publishedPolicySlugs, recordEvent, redirectTarget } from "@/lib/store";
+import { mediaDeliveryUrl } from "@/lib/images";
+import { formatPesos } from "@/lib/money";
+import { breadcrumbJsonLd, catalogOrigin, pageOpenGraph, productJsonLd, productSeoDescription, productSeoTitle, titled } from "@/lib/seo";
+import { getActiveProduct, loadShell, publishedPolicySlugs, redirectTarget } from "@/lib/store";
+import { trackView } from "@/lib/events";
+import { queryValue } from "@/lib/event-guards";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -15,9 +17,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!found) notFound();
   const shell = await loadShell().catch(() => null);
   const brand = shell?.business.name?.trim() ?? "";
-  const rawTitle = found.product.seoTitle || found.product.name;
+  const rawTitle = productSeoTitle(found.product.name, found.product.seoTitle);
   const title = titled(rawTitle, brand);
-  const description = clip(found.product.seoDescription || found.product.shortDescription || found.product.description, 160);
+  const description = productSeoDescription({
+    seoDescription: found.product.seoDescription,
+    shortDescription: found.product.shortDescription,
+    description: found.product.description,
+    categoryTexts: [found.categoryRow?.description, found.categoryRow?.seoDescription, found.parentRow?.description, found.parentRow?.seoDescription],
+  });
   const path = `/producto/${found.product.slug}`;
   // Misma marca que el <title>: si ya viene en seoTitle no se duplica; si no, se añade al OG.
   const ogTitle = typeof title === "object" ? title.absolute : brand ? `${rawTitle} · ${brand}` : rawTitle;
@@ -25,14 +32,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     title,
     description,
     alternates: { canonical: path },
-    openGraph: {
-      title: ogTitle,
-      description,
-      url: path,
-      type: "website",
-      ...(brand ? { siteName: brand } : {}),
-      images: found.photos[0] ? [found.photos[0].url] : [],
-    },
+    openGraph: pageOpenGraph({ title: ogTitle, description, path, brand, image: found.photos[0]?.url }),
   };
 }
 
@@ -58,7 +58,7 @@ export default async function ProductPage({
     notFound();
   }
   if (!shell) return null;
-  await recordEvent("product_view", `/producto/${found.product.slug}`, found.product.id);
+  await trackView("product_view", `/producto/${found.product.slug}`, found.product.id, queryValue(raw.utm_source));
   const origin = catalogOrigin(shell.settings.publicUrl);
   const url = `${origin}/producto/${found.product.slug}`;
   const price = found.product.pricePesos == null ? null : Number(found.product.pricePesos);
@@ -77,33 +77,18 @@ export default async function ProductPage({
   const attributes = found.defs
     .filter((item) => attributeIds.includes(item.id))
     .map((item) => ({ id: item.id, name: item.name }));
-  const db = getDb();
-  const categoryRow =
-    found.product.categoryId && db
-      ? (
-          await db
-            .select({ id: categories.id, name: categories.name, slug: categories.slug, parentId: categories.parentId })
-            .from(categories)
-            .where(eq(categories.id, found.product.categoryId))
-            .limit(1)
-        )[0]
-      : undefined;
+  const categoryRow = found.categoryRow;
+  const parent = found.parentRow;
   let category: { name: string; href: string } | null = null;
   if (categoryRow) {
-    if (categoryRow.parentId && db) {
-      const [parent] = await db
-        .select({ slug: categories.slug, name: categories.name })
-        .from(categories)
-        .where(eq(categories.id, categoryRow.parentId))
-        .limit(1);
+    if (categoryRow.parentId) {
       category = parent
         ? { name: categoryRow.name, href: `/categoria/${parent.slug}/${categoryRow.slug}` }
         : { name: categoryRow.name, href: `/catalogo?categoria=${categoryRow.id}` };
     } else {
       category = { name: categoryRow.name, href: `/categoria/${categoryRow.slug}` };
     }
-  }
-  const policies = await publishedPolicySlugs();
+  }  const policies = await publishedPolicySlugs();
   const related = found.related.filter((item) => item.id !== found.product.id).slice(0, 4);
 
   return (
@@ -119,7 +104,12 @@ export default async function ProductPage({
       <JsonLd
         data={productJsonLd({
           name: found.product.name,
-          description: clip(found.product.seoDescription || found.product.shortDescription || found.product.description, 160),
+          description: productSeoDescription({
+            seoDescription: found.product.seoDescription,
+            shortDescription: found.product.shortDescription,
+            description: found.product.description,
+            categoryTexts: [categoryRow?.description, categoryRow?.seoDescription, parent?.description, parent?.seoDescription],
+          }),
           sku: found.product.sku || found.product.slug,
           image: found.photos.map((photo) => photo.url),
           url,
@@ -128,6 +118,7 @@ export default async function ProductPage({
           availability: found.product.availability,
           kind: found.product.kind,
           store: shell.business.name,
+          variantPrices: found.vars.flatMap((item) => (item.pricePesos == null ? [] : [Number(item.pricePesos)])),
         })}
       />
       <FichaVista
@@ -187,10 +178,23 @@ export default async function ProductPage({
       {related.length ? (
         <section className="ficha-related" aria-labelledby="ficha-related-title">
           <h2 id="ficha-related-title">También en esta categoría</h2>
-          <ul>
+          <ul className="ficha-related-grid">
             {related.map((item) => (
               <li key={item.id}>
-                <a href={`/producto/${item.slug}`}>{item.name}</a>
+                <Link href={`/producto/${item.slug}`}>
+                  {item.photo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={mediaDeliveryUrl(item.photo.url, { width: 480, crop: "limit" })} alt="" loading="lazy" decoding="async" />
+                  ) : (
+                    <span className="ph" aria-hidden="true" />
+                  )}
+                  <span className="ficha-related-name">{item.name}</span>
+                  <span className="ficha-related-price">
+                    {item.priceMode === "ask" || item.pricePesos == null
+                      ? "Consultar precio"
+                      : formatPesos(Number(item.pricePesos), shell.business.currencySymbol)}
+                  </span>
+                </Link>
               </li>
             ))}
           </ul>

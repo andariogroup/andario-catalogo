@@ -134,9 +134,12 @@ function MediaPicker({
     if (saved && fileRef.current) fileRef.current.value = "";
   }, [saved]);
 
-  useEffect(() => {
+  const [syncedCurrent, setSyncedCurrent] = useState(current);
+  // Si ya no hay imagen guardada, se olvida la marca de "quitar".
+  if (syncedCurrent !== current) {
+    setSyncedCurrent(current);
     if (!current) setRemoved(false);
-  }, [current]);
+  }
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -335,10 +338,12 @@ function SlideForm() {
   const setToast = useContext(ToastContext);
   const [values, setValues] = useState({ title: "", subtitle: "", ctaLabel: "", ctaHref: "", sortOrder: "0" });
 
-  useEffect(() => {
-    if (!state.ok) return;
-    setValues({ title: "", subtitle: "", ctaLabel: "", ctaHref: "", sortOrder: "0" });
-  }, [state.ok]);
+  const [seenState, setSeenState] = useState(state);
+  // Al guardarse la diapositiva, el formulario se vacía.
+  if (seenState !== state) {
+    setSeenState(state);
+    if (state.ok) setValues({ title: "", subtitle: "", ctaLabel: "", ctaHref: "", sortOrder: "0" });
+  }
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     const problem = linkProblem(values.ctaHref);

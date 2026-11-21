@@ -140,6 +140,7 @@ export function ShopFrame({
   };
   const frame = (
     <div className="shop" style={themeStyle(shell)}>
+      <a className="skip-link" href="#contenido">Saltar al contenido</a>
       <ShopMenu>
       <header className="header" style={brand.stickyHeader ? { position: "sticky", top: 0, zIndex: 4, background: "color-mix(in srgb, var(--paper) 96%, transparent)" } : undefined}>
         <Link className={showLogo ? "brand-lockup has-logo" : "brand-lockup"} href="/">
@@ -161,6 +162,7 @@ export function ShopFrame({
         <ShopMenuLinks />
       </header>
       </ShopMenu>
+      <span id="contenido" tabIndex={-1} />
       {children}
       <footer className="footer">
         <div className="footer-inner">

@@ -18,9 +18,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
   const db = getDb();
   if (!db) return entries;
-  const cats = await db.select().from(categories).where(eq(categories.status, "active"));
-  const items = await db.select().from(products).where(eq(products.status, "active"));
-  const pages = await db.select().from(contentPages).where(eq(contentPages.published, true));
+  const [cats, items, pages] = await Promise.all([
+    db.select().from(categories).where(eq(categories.status, "active")),
+    db.select().from(products).where(eq(products.status, "active")),
+    db.select().from(contentPages).where(eq(contentPages.published, true)),
+  ]);
+  // Fecha real de la última actualización: ayuda a Google a decidir qué volver a rastrear.
+  const newest = items.reduce<Date | undefined>((latest, item) => (!latest || item.updatedAt > latest ? item.updatedAt : latest), undefined);
+  if (newest) {
+    entries[0].lastModified = newest;
+    entries[1].lastModified = newest;
+  }
   for (const category of cats) {
     if (category.parentId) {
       const parent = cats.find((item) => item.id === category.parentId);
@@ -30,7 +38,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
     entries.push({ url: `${origin}/categoria/${category.slug}`, changeFrequency: "weekly", priority: 0.6 });
   }
-  for (const product of items) entries.push({ url: `${origin}/producto/${product.slug}`, changeFrequency: "weekly", priority: 0.7 });
-  for (const page of pages) entries.push({ url: `${origin}/politicas/${page.slug}`, changeFrequency: "yearly", priority: 0.2 });
+  for (const product of items) entries.push({ url: `${origin}/producto/${product.slug}`, lastModified: product.updatedAt, changeFrequency: "weekly", priority: 0.7 });
+  for (const page of pages) entries.push({ url: `${origin}/politicas/${page.slug}`, lastModified: page.updatedAt, changeFrequency: "yearly", priority: 0.2 });
   return entries;
 }

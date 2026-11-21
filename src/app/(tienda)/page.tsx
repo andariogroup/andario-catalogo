@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AnnouncementBar } from "@/components/catalog/aviso";
+import { TrackedWhatsAppLink } from "@/components/consent/analytics-hooks";
 import { HeroStage } from "@/components/catalog/hero";
 import { formatPesos } from "@/lib/money";
 import { clip } from "@/lib/seo";
-import { listCatalog, loadHome, productPhotos, recordEvent } from "@/lib/store";
+import { listCatalog, loadHome, productFirstPhotos } from "@/lib/store";
+import { mediaDeliveryUrl } from "@/lib/images";
+import { trackView } from "@/lib/events";
+import { queryValue } from "@/lib/event-guards";
 import { mapEmbedSrc } from "@/lib/maps";
 import { telHref } from "@/lib/phone";
 import { whatsappHref } from "@/lib/whatsapp";
@@ -64,18 +68,16 @@ function visible(starts: string, ends: string) {
   return true;
 }
 
-export default async function HomePage() {
-  const home = await loadHome();
+export default async function HomePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const [home, catalog] = await Promise.all([loadHome(), listCatalog({ page: 1 })]);
   if (!home) return null;
-  await recordEvent("catalog_view", "/");
+  await trackView("catalog_view", "/", undefined, queryValue((await searchParams).utm_source));
   const { business, settings, hero, slides, bar, sections, promo, cats, featured, news } = home;
-  const catalog = await listCatalog({ page: 1 });
-  async function withPhoto(product: (typeof featured)[number]) {
-    return { product, photo: (await productPhotos(product.id))[0]?.url ?? "" };
-  }
-  const featuredCards = await Promise.all(featured.map(withPhoto));
-  const newsCards = await Promise.all(news.map(withPhoto));
-  const catalogCards = await Promise.all(catalog.rows.map(withPhoto));
+  const photos = await productFirstPhotos([...new Set([...featured, ...news, ...catalog.rows].map((product) => product.id))]);
+  const withPhoto = (product: (typeof featured)[number]) => ({ product, photo: photos.get(product.id)?.url ?? "" });
+  const featuredCards = featured.map(withPhoto);
+  const newsCards = news.map(withPhoto);
+  const catalogCards = catalog.rows.map(withPhoto);
   const homeCategories = cats.filter((category) => category.showOnHome && !category.parentId);
   const chat = whatsappHref(business.whatsapp, settings.whatsappGeneral || `Hola, vi ${business.name}.`);
   const phoneCall = telHref(business.phone);
@@ -104,8 +106,10 @@ export default async function HomePage() {
             slides={slides.map((slide) => ({ image: slide.desktopUrl, title: slide.title, subtitle: slide.subtitle, ctaLabel: slide.ctaLabel, ctaHref: slide.ctaHref }))}
           />
         ) : null}
-        {ordered.map((section) => {
+        {ordered.map((section, sectionIndex) => {
           const cards = cardsFor(section.key);
+          // La primera sección puede quedar a la vista al cargar; el resto se difiere.
+          const lazy = sectionIndex === 0 && !hero?.active ? undefined : ("lazy" as const);
           const story = clip(business.story || business.description || business.shortDescription, 420);
           const aboutStory = storyForHome(business.story || business.description || business.shortDescription);
           const aboutPlace = [business.address, business.city].filter(Boolean).join(" · ");
@@ -136,7 +140,7 @@ export default async function HomePage() {
                     >
                       {category.imageUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={category.imageUrl} alt="" />
+                        <img src={mediaDeliveryUrl(category.imageUrl, { width: 480, crop: "limit" })} alt="" loading={lazy} decoding="async" />
                       ) : null}
                       <strong>{category.name}</strong>
                     </Link>
@@ -149,7 +153,7 @@ export default async function HomePage() {
                     <Link className="piece" key={product.id} href={`/producto/${product.slug}`}>
                       {photo ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={photo} alt={product.name} />
+                        <img src={mediaDeliveryUrl(photo, { width: 640, crop: "limit" })} alt={product.name} loading={lazy} decoding="async" />
                       ) : <span className="ph" />}
                       <h3>{product.name}</h3>
                       <p className="price">{product.priceMode === "ask" ? "Consultar" : formatPesos(product.pricePesos == null ? null : Number(product.pricePesos), business.currencySymbol)}</p>
@@ -164,7 +168,7 @@ export default async function HomePage() {
                       <>
                         {item.imageUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={item.imageUrl} alt="" />
+                          <img src={mediaDeliveryUrl(item.imageUrl, { width: 1200, crop: "limit" })} alt="" loading={lazy} decoding="async" />
                         ) : null}
                         <div className="promo-copy">
                           <h3>{item.title}</h3>
@@ -199,7 +203,7 @@ export default async function HomePage() {
                   </div>
                   {business.storyImageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={business.storyImageUrl} alt={business.storyTitle || business.name} />
+                    <img src={mediaDeliveryUrl(business.storyImageUrl, { width: 900, crop: "limit" })} alt={business.storyTitle || business.name} loading={lazy} decoding="async" />
                   ) : null}
                 </article>
               ) : null}
@@ -229,7 +233,7 @@ export default async function HomePage() {
                       </div>
                     </div>
                     <div className="help-actions">
-                      {chat ? <a className="btn" href={chat}>Escribir por WhatsApp</a> : null}
+                      {chat ? <TrackedWhatsAppLink className="btn" href={chat} source="home">Escribir por WhatsApp</TrackedWhatsAppLink> : null}
                       {phoneCall ? (
                         <a className="quiet" href={phoneCall}>
                           Llamar

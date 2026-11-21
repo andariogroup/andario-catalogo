@@ -51,15 +51,26 @@ describe("QA_ANDARIO presentation matrix", () => {
       else expect(showQty).toBe(true);
 
       const soldOut = scenario.availability === "sold_out";
-      const primary = fichaConversionPrimary({
+      const primaryWithWa = fichaConversionPrimary({
         cartEligible: !soldOut,
         hasWhatsApp: true,
         soldOut,
         priceMode: scenario.priceMode,
         kind: scenario.kind,
       });
-      if (scenario.priceMode === "ask" && !soldOut) expect(primary).toBe("whatsapp");
-      if (scenario.priceMode === "fixed" && !soldOut) expect(primary).toBe("cart");
+      if (!soldOut) expect(primaryWithWa).toBe("whatsapp");
+      else expect(primaryWithWa).toBe("quote");
+
+      const primaryNoWa = fichaConversionPrimary({
+        cartEligible: !soldOut,
+        hasWhatsApp: false,
+        soldOut,
+        priceMode: scenario.priceMode,
+        kind: scenario.kind,
+      });
+      if (soldOut) expect(primaryNoWa).toBe("quote");
+      else if (scenario.priceMode === "ask") expect(primaryNoWa).toBe("quote");
+      else expect(primaryNoWa).toBe("cart");
 
       expect(catalogKindLabel(scenario.kind)).toBe(
         scenario.kind === "digital" ? "Digital" : scenario.kind === "service" ? "Servicio" : "",
@@ -103,17 +114,28 @@ describe("QA_ANDARIO presentation matrix", () => {
     expect(cartEligible({ needsChoice: true, availability: "available" })).toBe(false);
   });
 
-  it("en ask el carrito puede ser secundario sin inventar precios", () => {
-    const secondary = fichaSecondaryActions({
+  it("con WhatsApp primario el carrito queda secundario en cualquier priceMode", () => {
+    const secondaryAsk = fichaSecondaryActions({
       primary: "whatsapp",
       cartEligible: true,
       hasWhatsApp: true,
       soldOut: false,
       priceMode: "ask",
     });
-    expect(secondary.showCart).toBe(true);
-    expect(secondary.showQuote).toBe(true);
-    expect(secondary.showWhatsApp).toBe(false);
+    expect(secondaryAsk.showCart).toBe(true);
+    expect(secondaryAsk.showQuote).toBe(true);
+    expect(secondaryAsk.showWhatsApp).toBe(false);
+
+    const secondaryFixed = fichaSecondaryActions({
+      primary: "whatsapp",
+      cartEligible: true,
+      hasWhatsApp: true,
+      soldOut: false,
+      priceMode: "fixed",
+    });
+    expect(secondaryFixed.showCart).toBe(true);
+    expect(secondaryFixed.showQuote).toBe(true);
+    expect(secondaryFixed.showWhatsApp).toBe(false);
 
     const lines = [
       {

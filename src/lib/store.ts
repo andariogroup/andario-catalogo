@@ -1,8 +1,11 @@
 import "server-only";
 
 import { cache } from "react";
-import { and, asc, desc, eq, gte, ilike, inArray, isNull, lte, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNull, lte, ne, notInArray, or, sql, type SQL, type SQLWrapper } from "drizzle-orm";
+import { SQL_ACCENT_FROM, SQL_ACCENT_TO, likePattern, searchTokens } from "@/lib/search";
 import { getDb } from "@/lib/db";
+import { STORE_TIMEZONE, fillDays, type DashboardRange, type EventCounts } from "@/lib/dashboard-metrics";
+import { INTERNAL_SOURCE } from "@/lib/event-guards";
 import { purgeExpiredQuotes } from "@/lib/quote-retention";
 import type { LibraryItem, LibraryUse } from "@/lib/library";
 import {
@@ -49,6 +52,23 @@ import {
 import { pesosFromDb } from "@/lib/money";
 
 const PAGE_SIZE = 12;
+
+/** Todas las palabras deben aparecer (sin importar tildes ni mayúsculas) en nombre, SKU o descripciones. */
+function productSearchClause(q: string | undefined) {
+  const tokens = searchTokens(q);
+  if (!tokens.length) return null;
+  const fold = (column: SQLWrapper) => sql`translate(${column}, ${SQL_ACCENT_FROM}, ${SQL_ACCENT_TO})`;
+  const perToken = tokens.map((token) => {
+    const pattern = likePattern(token);
+    return or(
+      sql`${fold(products.name)} ilike ${pattern}`,
+      sql`${fold(products.sku)} ilike ${pattern}`,
+      sql`${fold(products.shortDescription)} ilike ${pattern}`,
+      sql`${fold(products.description)} ilike ${pattern}`,
+    )!;
+  });
+  return and(...perToken)!;
+}
 
 /**
  * Deduplica lecturas del shell dentro del mismo request (layout + metadata + página).
@@ -254,10 +274,8 @@ export async function listCatalog(query: CatalogQuery) {
   const filters = [eq(products.status, "active")];
   const categoryVisibility = await excludeInactiveCategoryProducts();
   if (categoryVisibility) filters.push(categoryVisibility);
-  if (query.q) {
-    const like = `%${query.q.slice(0, 80)}%`;
-    filters.push(or(ilike(products.name, like), ilike(products.sku, like), ilike(products.shortDescription, like), ilike(products.description, like))!);
-  }
+  const searchClause = productSearchClause(query.q);
+  if (searchClause) filters.push(searchClause);
   if (query.category) {
     const scope = await catalogCategoryIds(query.category);
     if (!scope.length) return { rows: [], total: 0, page, pages: 1 };
@@ -317,10 +335,13 @@ export async function listCatalog(query: CatalogQuery) {
           : query.sort === "recent"
             ? [desc(products.createdAt)]
             : [asc(products.sortOrder), desc(products.createdAt)];
-  const totalRows = await db.select({ id: products.id }).from(products).where(where);
-  const rows = await db.select().from(products).where(where).orderBy(...order).limit(PAGE_SIZE).offset((page - 1) * PAGE_SIZE);
-  const pages = Math.max(1, Math.ceil(totalRows.length / PAGE_SIZE));
-  return { rows, total: totalRows.length, page, pages };
+  const [[counted], rows] = await Promise.all([
+    db.select({ total: count() }).from(products).where(where),
+    db.select().from(products).where(where).orderBy(...order).limit(PAGE_SIZE).offset((page - 1) * PAGE_SIZE),
+  ]);
+  const total = Number(counted?.total ?? 0);
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  return { rows, total, page, pages };
 }
 
 /** Facetas contextuales derivadas de productos publicados visibles en el contexto actual. */
@@ -346,10 +367,8 @@ export async function listCatalogFacets(query: CatalogQuery) {
   const baseFilters = [eq(products.status, "active")];
   const categoryVisibility = await excludeInactiveCategoryProducts();
   if (categoryVisibility) baseFilters.push(categoryVisibility);
-  if (query.q) {
-    const like = `%${query.q.slice(0, 80)}%`;
-    baseFilters.push(or(ilike(products.name, like), ilike(products.sku, like), ilike(products.shortDescription, like), ilike(products.description, like))!);
-  }
+  const searchClause = productSearchClause(query.q);
+  if (searchClause) baseFilters.push(searchClause);
   const categoryScope = query.category ? await catalogCategoryIds(query.category) : null;
   if (query.category) {
     if (!categoryScope?.length) return { kinds: [], attributes: [], availability: [], useful: false };
@@ -443,10 +462,7 @@ export async function listCatalogFacets(query: CatalogQuery) {
   // Tipos presentes en el contexto (sin filtro de tipo).
   const kindFilters = [eq(products.status, "active")];
   if (categoryVisibility) kindFilters.push(categoryVisibility);
-  if (query.q) {
-    const like = `%${query.q.slice(0, 80)}%`;
-    kindFilters.push(or(ilike(products.name, like), ilike(products.sku, like), ilike(products.shortDescription, like), ilike(products.description, like))!);
-  }
+  if (searchClause) kindFilters.push(searchClause);
   if (categoryScope?.length) kindFilters.push(inArray(products.categoryId, categoryScope));
   const kindRows = await db.select({ kind: products.kind }).from(products).where(and(...kindFilters));
   const kindCounts = new Map<string, number>();
@@ -545,32 +561,64 @@ export async function productPhotos(productId: string) {
     .orderBy(asc(productMedia.sortOrder));
 }
 
-export async function getActiveProduct(slug: string) {
+/** Primera foto de cada producto en una sola consulta (evita una consulta por tarjeta). */
+export async function productFirstPhotos(productIds: string[]) {
+  const db = getDb();
+  const result = new Map<string, { url: string; alt: string }>();
+  if (!db || !productIds.length) return result;
+  const rows = await db
+    .select({ productId: productMedia.productId, url: mediaAssets.url, alt: mediaAssets.alt, sortOrder: productMedia.sortOrder })
+    .from(productMedia)
+    .innerJoin(mediaAssets, eq(productMedia.mediaId, mediaAssets.id))
+    .where(inArray(productMedia.productId, productIds))
+    .orderBy(asc(productMedia.sortOrder));
+  for (const row of rows) {
+    if (!result.has(row.productId)) result.set(row.productId, { url: row.url, alt: row.alt ?? "" });
+  }
+  return result;
+}
+
+export const getActiveProduct = cache(async (slug: string) => {
   const db = getDb();
   if (!db) return null;
   const [product] = await db.select().from(products).where(and(eq(products.slug, slug), eq(products.status, "active"))).limit(1);
   if (!product) return null;
-  const photos = await productPhotos(product.id);
-  const tags = await db.select().from(productTags).where(eq(productTags.productId, product.id));
-  const values = await db.select().from(productAttributeValues).where(eq(productAttributeValues.productId, product.id));
-  const defs = await db.select().from(attributes).orderBy(asc(attributes.sortOrder));
-  const options = await db.select().from(attributeOptions).orderBy(asc(attributeOptions.sortOrder));
-  const vars = await db.select().from(variants).where(eq(variants.productId, product.id));
+  const [photos, tags, values, defs, options, vars, relatedRows] = await Promise.all([
+    productPhotos(product.id),
+    db.select().from(productTags).where(eq(productTags.productId, product.id)),
+    db.select().from(productAttributeValues).where(eq(productAttributeValues.productId, product.id)),
+    db.select().from(attributes).orderBy(asc(attributes.sortOrder)),
+    db.select().from(attributeOptions).orderBy(asc(attributeOptions.sortOrder)),
+    db.select().from(variants).where(eq(variants.productId, product.id)),
+    product.categoryId
+      ? db
+          .select()
+          .from(products)
+          .where(and(eq(products.categoryId, product.categoryId), eq(products.status, "active"), ne(products.id, product.id)))
+          .orderBy(asc(products.sortOrder), asc(products.name))
+          .limit(4)
+      : Promise.resolve([]),
+  ]);
   const variantIds = vars.map((item) => item.id);
-  const varVals = variantIds.length ? await db.select().from(variantValues).where(inArray(variantValues.variantId, variantIds)) : [];
-  const variantPhotos = vars.length
-    ? await db.select({ variantId: variantMedia.variantId, url: mediaAssets.url, alt: mediaAssets.alt, sortOrder: variantMedia.sortOrder })
-      .from(variantMedia)
-      .innerJoin(mediaAssets, eq(variantMedia.mediaId, mediaAssets.id))
-      .where(inArray(variantMedia.variantId, vars.map((item) => item.id)))
-      .orderBy(asc(variantMedia.sortOrder))
-    : [];
-  const related = product.categoryId
-    ? await db.select().from(products).where(and(eq(products.categoryId, product.categoryId), eq(products.status, "active"))).limit(4)
-    : [];
-  return { product, photos, tags: tags.map((tag) => tag.tag), values, defs, options, vars, varVals, variantPhotos, related: related.filter((item) => item.id !== product.id) };
-}
-
+  const categoryFields = { id: categories.id, name: categories.name, slug: categories.slug, parentId: categories.parentId, description: categories.description, seoDescription: categories.seoDescription };
+  const [varVals, variantPhotos, relatedPhotos, categoryRows] = await Promise.all([
+    variantIds.length ? db.select().from(variantValues).where(inArray(variantValues.variantId, variantIds)) : Promise.resolve([]),
+    variantIds.length
+      ? db
+          .select({ variantId: variantMedia.variantId, url: mediaAssets.url, alt: mediaAssets.alt, sortOrder: variantMedia.sortOrder })
+          .from(variantMedia)
+          .innerJoin(mediaAssets, eq(variantMedia.mediaId, mediaAssets.id))
+          .where(inArray(variantMedia.variantId, variantIds))
+          .orderBy(asc(variantMedia.sortOrder))
+      : Promise.resolve([]),
+    productFirstPhotos(relatedRows.map((item) => item.id)),
+    product.categoryId ? db.select(categoryFields).from(categories).where(eq(categories.id, product.categoryId)).limit(1) : Promise.resolve([]),
+  ]);
+  const categoryRow = categoryRows[0] ?? null;
+  const [parentRow] = categoryRow?.parentId ? await db.select(categoryFields).from(categories).where(eq(categories.id, categoryRow.parentId)).limit(1) : [];
+  const related = relatedRows.map((item) => ({ ...item, photo: relatedPhotos.get(item.id) ?? null }));
+  return { product, photos, tags: tags.map((tag) => tag.tag), values, defs, options, vars, varVals, variantPhotos, related, categoryRow, parentRow: parentRow ?? null };
+});
 export async function redirectTarget(path: string) {
   const db = getDb();
   if (!db) return null;
@@ -658,62 +706,141 @@ export async function listLibrary(): Promise<LibraryItem[]> {
   });
 }
 
-export async function dashboardCounts(from: Date, to: Date) {
+const SESSION_EVENTS = "'product_view','whatsapp_click','cart_send','interest_list_send','quote_request_created'";
+const ENTRY_EVENTS = "'catalog_view','product_view','category_view'";
+
+/**
+ * Eventos del rango sin ráfagas: se descarta el mismo evento repetido en menos de 2 segundos
+ * (recargas, pruebas y registros dobles de versiones anteriores). No borra nada de la base.
+ */
+function cleanEvents(from: Date, to: Date) {
+  return sql`
+    clean as (
+      select name, path, product_id, source, created_at from (
+        select name, path, product_id, source, created_at,
+          lag(created_at) over (partition by name, path, coalesce(product_id, '') order by created_at) as previous
+        from analytics_events
+        where created_at >= ${from.toISOString()}::timestamptz and created_at <= ${to.toISOString()}::timestamptz
+      ) raw
+      where previous is null or created_at - previous > interval '2 seconds'
+    )`;
+}
+
+async function rows<T>(query: SQL): Promise<T[]> {
   const db = getDb();
-  const empty = { products: 0, active: 0, inactive: 0, featured: 0, categories: 0, views: 0, productViews: 0, whatsapp: 0, quotes: 0, pending: 0, pendingNow: 0, done: 0, unseenActive: 0, days: [] as { day: string; count: number }[], sources: [] as { source: string; count: number }[] };
-  if (!db) return empty;
-  await purgeExpiredQuotes();
-  const all = await db.select().from(products);
-  const cats = await db.select().from(categories).where(eq(categories.status, "active"));
-  const events = await db.select().from(analyticsEvents).where(and(gte(analyticsEvents.createdAt, from), lte(analyticsEvents.createdAt, to)));
-  const quoteRows = await db.select().from(quotes).where(and(gte(quotes.createdAt, from), lte(quotes.createdAt, to)));
-  const openNow = (await db.select({ status: quotes.status }).from(quotes)).filter((item) => item.status === "nueva" || item.status === "en-gestion").length;
-  const viewed = new Set(events.filter((event) => event.name === "product_view" && event.productId).map((event) => event.productId));
-  const activeProducts = all.filter((item) => item.status === "active");
+  if (!db) return [];
+  const result = await db.execute(query);
+  return result.rows as T[];
+}
+
+async function eventTotals(from: Date, to: Date): Promise<EventCounts> {
+  const found = await rows<{ name: string; total: number }>(sql`with ${cleanEvents(from, to)} select name, count(*)::int as total from clean group by name`);
+  return Object.fromEntries(found.map((row) => [row.name, Number(row.total)]));
+}
+
+export async function dashboardReport(range: DashboardRange) {
+  const db = getDb();
+  const zone = STORE_TIMEZONE;
+  const { from, to } = range;
+  const [totals, previous, dayRows, hourRows, productRows, entryRows, categoryEvents, searchRows, placementRows] = await Promise.all([
+    eventTotals(from, to),
+    eventTotals(range.previousFrom, range.previousTo),
+    rows<{ day: string; name: string; total: number }>(sql`
+      with ${cleanEvents(from, to)}
+      select to_char(created_at at time zone ${zone}, 'YYYY-MM-DD') as day, name, count(*)::int as total
+      from clean where name in (${sql.raw(SESSION_EVENTS)}) group by 1, 2`),
+    rows<{ hour: number; dow: number; total: number }>(sql`
+      with ${cleanEvents(from, to)}
+      select extract(hour from created_at at time zone ${zone})::int as hour, extract(dow from created_at at time zone ${zone})::int as dow, count(*)::int as total
+      from clean where name in (${sql.raw(SESSION_EVENTS)}) group by 1, 2`),
+    rows<{ product_id: string; name: string; total: number }>(sql`
+      with ${cleanEvents(from, to)}
+      select product_id, name, count(*)::int as total
+      from clean where product_id is not null and name in ('product_view','whatsapp_click','cart_add','interest_list_add') group by 1, 2`),
+    rows<{ source: string; total: number }>(sql`
+      with ${cleanEvents(from, to)}
+      select source, count(*)::int as total
+      from clean where name in (${sql.raw(ENTRY_EVENTS)}) group by 1 order by 2 desc limit 20`),
+    rows<{ path: string; total: number }>(sql`
+      with ${cleanEvents(from, to)}
+      select path, count(*)::int as total from clean where name = 'category_view' group by 1 order by 2 desc limit 12`),
+    rows<{ term: string; total: number; empty: number }>(sql`
+      with ${cleanEvents(from, to)}
+      select path as term, count(*)::int as total, sum(case when source = '0' then 1 else 0 end)::int as empty
+      from clean where name = 'search' group by 1 order by 2 desc limit 40`),
+    rows<{ placement: string; total: number }>(sql`
+      with ${cleanEvents(from, to)}
+      select case name when 'whatsapp_click' then source when 'cart_send' then 'cart' when 'interest_list_send' then 'list' else 'quote' end as placement, count(*)::int as total
+      from clean where name in ('whatsapp_click','cart_send','interest_list_send','quote_request_created') group by 1 order by 2 desc`),
+  ]);
+
+  const productList = db ? await db.select({ id: products.id, name: products.name, slug: products.slug, status: products.status, featured: products.featured }).from(products) : [];
+  const categoryList = db ? await db.select({ name: categories.name, slug: categories.slug, status: categories.status }).from(categories) : [];
+  const quoteStats = db ? await db.select({ status: quotes.status, createdAt: quotes.createdAt }).from(quotes) : [];
+
+  const perProduct = new Map<string, { views: number; contacts: number; saved: number }>();
+  for (const row of productRows) {
+    const current = perProduct.get(row.product_id) ?? { views: 0, contacts: 0, saved: 0 };
+    if (row.name === "product_view") current.views += Number(row.total);
+    else if (row.name === "whatsapp_click") current.contacts += Number(row.total);
+    else current.saved += Number(row.total);
+    perProduct.set(row.product_id, current);
+  }
+  const active = productList.filter((item) => item.status === "active");
+  const productsReport = active
+    .map((item) => {
+      const stats = perProduct.get(item.id) ?? { views: 0, contacts: 0, saved: 0 };
+      return { id: item.id, name: item.name, slug: item.slug, featured: item.featured, ...stats };
+    })
+    .sort((a, b) => b.views - a.views || b.contacts - a.contacts || a.name.localeCompare(b.name, "es"));
+
+  const categoryNames = new Map(categoryList.map((item) => [item.slug, item.name]));
+  const categoriesReport = categoryEvents
+    .map((row) => ({ name: categoryNames.get(row.path.split("/").filter(Boolean).pop() ?? "") ?? row.path, total: Number(row.total) }))
+    .slice(0, 6);
+
+  const searches = searchRows.map((row) => ({ term: row.term, total: Number(row.total), empty: Number(row.empty) }));
+  const inRange = quoteStats.filter((item) => item.createdAt >= from && item.createdAt <= to);
+  const isOpen = (status: string) => status === "nueva" || status === "en-gestion";
+
+  const hourTotals = Array.from({ length: 24 }, (_, hour) => ({ hour, total: 0 }));
+  const weekdayTotals = Array.from({ length: 7 }, (_, dow) => ({ dow, total: 0 }));
+  for (const row of hourRows) {
+    hourTotals[Number(row.hour)].total += Number(row.total);
+    weekdayTotals[Number(row.dow)].total += Number(row.total);
+  }
+
   return {
-    products: all.length,
-    active: all.filter((item) => item.status === "active").length,
-    inactive: all.filter((item) => item.status !== "active").length,
-    featured: all.filter((item) => item.featured).length,
-    categories: cats.length,
-    views: events.filter((item) => item.name === "catalog_view").length,
-    productViews: events.filter((item) => item.name === "product_view").length,
-    whatsapp: events.filter((item) => item.name === "whatsapp_click").length,
-    quotes: quoteRows.length,
-    pending: quoteRows.filter((item) => item.status === "nueva" || item.status === "en-gestion").length,
-    pendingNow: openNow,
-    done: quoteRows.filter((item) => item.status === "atendida" || item.status === "cerrada").length,
-    unseenActive: activeProducts.filter((item) => !viewed.has(item.id)).length,
-    days: [...events.reduce((map, event) => {
-      const day = event.createdAt.toISOString().slice(0, 10);
-      map.set(day, (map.get(day) ?? 0) + 1);
-      return map;
-    }, new Map<string, number>())].map(([day, count]) => ({ day, count })),
-    sources: [...events.reduce((map, event) => {
-      if (!event.source) return map;
-      map.set(event.source, (map.get(event.source) ?? 0) + 1);
-      return map;
-    }, new Map<string, number>())].map(([source, count]) => ({ source, count })),
+    totals,
+    previous,
+    days: fillDays(range.fromDay, range.toDay, dayRows.map((row) => ({ day: row.day, name: row.name, total: Number(row.total) }))),
+    hours: hourTotals,
+    weekdays: weekdayTotals,
+    products: productsReport,
+    categories: categoriesReport,
+    searches,
+    sources: entryRows
+      .filter((row) => row.source !== INTERNAL_SOURCE)
+      .slice(0, 12)
+      .map((row) => ({ source: row.source, total: Number(row.total) })),
+    internalNav: entryRows.filter((row) => row.source === INTERNAL_SOURCE).reduce((sum, row) => sum + Number(row.total), 0),
+    placements: placementRows.map((row) => ({ placement: row.placement, total: Number(row.total) })),
+    quotes: {
+      inRange: inRange.length,
+      done: inRange.filter((item) => item.status === "atendida" || item.status === "cerrada").length,
+      openNow: quoteStats.filter((item) => isOpen(item.status)).length,
+    },
+    catalog: {
+      products: productList.length,
+      active: active.length,
+      inactive: productList.length - active.length,
+      featured: productList.filter((item) => item.featured).length,
+      categories: categoryList.filter((item) => item.status === "active").length,
+    },
   };
 }
 
-export async function topProducts(from: Date, to: Date) {
-  const db = getDb();
-  if (!db) return [];
-  const events = await db.select().from(analyticsEvents).where(and(eq(analyticsEvents.name, "product_view"), gte(analyticsEvents.createdAt, from), lte(analyticsEvents.createdAt, to)));
-  const counts = new Map<string, number>();
-  for (const event of events) {
-    if (!event.productId) continue;
-    counts.set(event.productId, (counts.get(event.productId) ?? 0) + 1);
-  }
-  const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const result = [];
-  for (const [id, count] of ranked) {
-    const [product] = await db.select().from(products).where(eq(products.id, id)).limit(1);
-    if (product) result.push({ name: product.name, count });
-  }
-  return result;
-}
+export type DashboardReport = Awaited<ReturnType<typeof dashboardReport>>;
 
 export { pesosFromDb, PAGE_SIZE };
 
@@ -783,7 +910,7 @@ export async function quoteGuards() {
 export async function recordEvent(name: string, path: string, productId?: string, source?: string) {
   const db = getDb();
   if (!db) return;
-  const allowed = new Set(["catalog_view", "product_view", "category_view", "whatsapp_click", "interest_list_add", "interest_list_send", "cart_add", "cart_send", "quote_request_created", "product_share", "product_link_copy", "product_qr_download"]);
+  const allowed = new Set(["catalog_view", "search", "product_view", "category_view", "whatsapp_click", "interest_list_add", "interest_list_send", "cart_add", "cart_send", "quote_request_created", "product_share", "product_link_copy", "product_qr_download"]);
   if (!allowed.has(name)) return;
   await db.insert(analyticsEvents).values({
     id: crypto.randomUUID(),

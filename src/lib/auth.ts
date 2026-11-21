@@ -8,10 +8,11 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { authSecret } from "@/lib/env";
+import { SESSION_COOKIE } from "@/lib/session-cookie";
 import { allows, isRole, type Access, type AppModule, type Role } from "@/lib/permissions";
 import { passwordSessionStamp, sessionPasswordStale } from "@/lib/users";
 
-const COOKIE = "andario_session";
+const COOKIE = SESSION_COOKIE;
 const DUMMY = bcrypt.hashSync("andario-dummy-not-a-password", 12);
 
 export type SessionUser = { id: string; name: string; email: string; role: Role };

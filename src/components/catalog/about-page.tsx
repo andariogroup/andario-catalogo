@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TrackedWhatsAppLink } from "@/components/consent/analytics-hooks";
 import {
   aboutCatalogCtaLabel,
   aboutCommercialNotes,
@@ -86,9 +87,9 @@ export function AboutPageView({ business, whatsappMessage }: Props) {
               {catalogLabel}
             </Link>
             {chat ? (
-              <a className="quiet" href={chat}>
+              <TrackedWhatsAppLink className="quiet" href={chat} source="about">
                 {aboutWhatsAppLabel(business)}
-              </a>
+              </TrackedWhatsAppLink>
             ) : null}
           </div>
         </div>
@@ -125,9 +126,9 @@ export function AboutPageView({ business, whatsappMessage }: Props) {
                 <h3 className="about-group-title">Atención y consultas</h3>
                 {chat ? (
                   <div className="about-contact-actions about-contact-primary">
-                    <a className="btn" href={chat}>
+                    <TrackedWhatsAppLink className="btn" href={chat} source="about">
                       {aboutWhatsAppLabel(business)}
-                    </a>
+                    </TrackedWhatsAppLink>
                   </div>
                 ) : null}
                 <dl className="about-facts">

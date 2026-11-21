@@ -164,13 +164,16 @@ export function BusinessStudio({ initial, uploadsReady }: { initial: BusinessDra
   const shown = localPreview || (removeSaved ? "" : initial.storyImageUrl);
   const problem = firstProblem(values);
 
-  useEffect(() => {
-    if (pending) return;
+  const [seenState, setSeenState] = useState(state);
+  // Cada respuesta nueva del servidor se muestra como aviso.
+  if (!pending && seenState !== state) {
+    setSeenState(state);
     if (state.error) setNotice({ kind: "bad", text: state.error });
-    else if (state.ok) {
-      setNotice({ kind: "ok", text: state.ok });
-      if (fileRef.current) fileRef.current.value = "";
-    }
+    else if (state.ok) setNotice({ kind: "ok", text: state.ok });
+  }
+
+  useEffect(() => {
+    if (!pending && state.ok && fileRef.current) fileRef.current.value = "";
   }, [pending, state]);
 
   useEffect(() => {

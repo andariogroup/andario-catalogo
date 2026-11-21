@@ -11,6 +11,7 @@ import {
   trackViewItemList,
   type AnalyticsItem,
 } from "@/lib/analytics";
+import { sendEvent } from "@/lib/track-client";
 
 export function TrackViewItem({
   currency,
@@ -88,7 +89,14 @@ export function TrackedWhatsAppLink({
   children: ReactNode;
 }) {
   return (
-    <a className={className} href={href} onClick={() => emitContactWhatsapp(source)}>
+    <a
+      className={className}
+      href={href}
+      onClick={() => {
+        sendEvent("whatsapp_click", window.location.pathname || "/", "", source);
+        emitContactWhatsapp(source);
+      }}
+    >
       {children}
     </a>
   );

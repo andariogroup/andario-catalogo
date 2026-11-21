@@ -135,7 +135,7 @@ export function aboutWithoutLocationEcho(
   business: Pick<AboutBusiness, "address" | "city" | "region" | "country">,
   options?: { placeVisible?: boolean },
 ) {
-  let text = scrubPlatformSentences(value);
+  const text = scrubPlatformSentences(value);
   if (!text) return "";
   if (!options?.placeVisible) return text;
 

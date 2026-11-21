@@ -30,9 +30,6 @@ export default async function SeoPage() {
           indexable: shell.settings.indexable,
           whatsappGeneral: shell.settings.whatsappGeneral,
           whatsappProduct: shell.settings.whatsappProduct,
-          floatWhatsapp: shell.settings.floatWhatsapp,
-          floatLabel: shell.settings.floatLabel,
-          floatSide: shell.settings.floatSide === "left" ? "left" : "right",
         }}
         pages={pages}
         redirects={redirects}

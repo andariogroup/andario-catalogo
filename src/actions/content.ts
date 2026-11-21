@@ -379,9 +379,6 @@ export async function saveSeoAction(_prev: FormState, formData: FormData): Promi
     indexable: checked(formData, "indexable"),
     whatsappGeneral: text(formData, "whatsappGeneral").slice(0, 300),
     whatsappProduct: text(formData, "whatsappProduct").slice(0, 300),
-    floatWhatsapp: checked(formData, "floatWhatsapp"),
-    floatLabel: text(formData, "floatLabel").slice(0, 24) || "WhatsApp",
-    floatSide: text(formData, "floatSide") === "left" ? "left" : "right",
   }).where(eq(settings.businessId, 1));
   revalidatePath("/", "layout");
   await recordAudit(user.email, "guardo-seo", "seo");

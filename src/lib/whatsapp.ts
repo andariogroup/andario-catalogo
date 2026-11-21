@@ -22,7 +22,8 @@ export function productAsk(store: string, line: AskLine, intro = ""): string {
   if (line.quantity && line.quantity > 1) rows.push(`${line.quantity} unidades`);
   if (line.price) rows.push(`Precio publicado: ${line.price}`);
   if (line.url) rows.push(line.url);
-  rows.push("", "Quiero información. El precio publicado no es una oferta cerrada.");
+  rows.push("", "Quiero pedirlo. Confírmame disponibilidad, envío y valor final.");
+  rows.push("El precio publicado no es una oferta cerrada ni un pago realizado.");
   return rows.join("\n");
 }
 

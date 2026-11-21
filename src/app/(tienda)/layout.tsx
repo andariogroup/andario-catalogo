@@ -45,6 +45,7 @@ export default async function PublicLayout({ children }: { children: React.React
         image: shell.brand.socialImageUrl || shell.brand.logoUrl,
         address: shell.business.address,
         hours: shell.business.hours,
+        sameAs: shell.socials.map((item) => item.url),
       })} />
       {children}
     </ShopFrame>

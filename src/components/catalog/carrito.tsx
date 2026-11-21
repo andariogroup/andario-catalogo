@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ShoppingBag } from "lucide-react";
 import { useActionState, useEffect, useId, useState } from "react";
 import { createQuoteAction } from "@/actions/quotes";
-import { trackEventAction } from "@/actions/events";
+import { sendEvent } from "@/lib/track-client";
 import { emitContactWhatsapp, emitRemoveFromCart, TrackViewCart } from "@/components/consent/analytics-hooks";
 import {
   CART_MAX_QTY,
@@ -91,7 +91,9 @@ function CarritoBody({
   const liveId = useId();
   const formId = useId();
   const [announce, setAnnounce] = useState("");
-  const [contactOpen, setContactOpen] = useState(false);
+  const [contactToggled, setContactToggled] = useState(false);
+  // Tras enviar la solicitud el formulario de contacto se abre solo; el botón lo alterna.
+  const contactOpen = Boolean(quote.ok) !== contactToggled;
   const problems = cart.items.map((item) => lineProblem(item.name, item.productId, item.variantId, guards));
   const blocked = problems.some(Boolean);
   const totals = cartTotals(cart.items);
@@ -107,10 +109,7 @@ function CarritoBody({
   const href = whatsappHref(phone, cartAsk(store, waLines, { subtotal: subtotalLabel, catalogUrl }));
 
   useEffect(() => {
-    if (quote.ok) {
-      cart.clear();
-      setContactOpen(true);
-    }
+    if (quote.ok) cart.clear();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al confirmar envío del formulario
   }, [quote.ok]);
 
@@ -306,7 +305,7 @@ function CarritoBody({
             className="btn cart-summary-primary"
             href={href}
             onClick={() => {
-              void trackEventAction("cart_send", "/carrito");
+              sendEvent("cart_send", "/carrito");
               emitContactWhatsapp("cart");
             }}
           >
@@ -321,7 +320,7 @@ function CarritoBody({
             type="button"
             aria-expanded={contactOpen}
             aria-controls={formId}
-            onClick={() => setContactOpen((value) => !value)}
+            onClick={() => setContactToggled((value) => !value)}
           >
             {contactOpen ? "Ocultar formulario" : "Dejar mis datos de contacto"}
           </button>

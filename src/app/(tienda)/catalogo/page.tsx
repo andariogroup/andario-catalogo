@@ -4,8 +4,10 @@ import { CatalogView } from "@/components/catalog/catalog-view";
 import { getDb } from "@/lib/db";
 import { categories } from "@/lib/db/schema";
 import { normalizeCatalogKind, parseCatalogOptionIds } from "@/lib/catalog-facets";
-import { catalogCanonical } from "@/lib/seo";
-import { catalogCardPhoto, listCatalog, listCatalogFacets, loadShell, recordEvent } from "@/lib/store";
+import { catalogCanonical, clip, pageOpenGraph } from "@/lib/seo";
+import { catalogCardPhoto, listCatalog, listCatalogFacets, loadShell } from "@/lib/store";
+import { trackView } from "@/lib/events";
+import { searchTerm } from "@/lib/dashboard-metrics";
 
 function asParam(value: string | string[] | undefined) {
   if (Array.isArray(value)) return value.filter(Boolean).join(",");
@@ -35,14 +37,22 @@ export async function generateMetadata({
   const filtered = Boolean(
     query.q || query.disponibilidad || query.minimo || query.maximo || query.opcion || query.opciones || query.tipo,
   );
-  const description =
-    shell?.business.shortDescription ||
-    shell?.business.slogan ||
-    `Catálogo de ${shell?.business.name || "productos"}`;
+  const brand = shell?.business.name?.trim() ?? "";
+  // Distinta de la portada: aquí se describe el listado completo, no la marca.
+  const lead = shell?.business.shortDescription || shell?.business.slogan || "";
+  const description = clip(`Explora todos los productos de ${brand || "nuestro catálogo"}. ${lead}`.trim(), 160);
+  const canonical = catalogCanonical(filtered ? { categoria: query.categoria } : query);
   return {
     title: "Catálogo",
     description,
-    alternates: { canonical: catalogCanonical(filtered ? { categoria: query.categoria } : query) },
+    alternates: { canonical },
+    openGraph: pageOpenGraph({
+      title: brand ? `Catálogo · ${brand}` : "Catálogo",
+      description,
+      path: canonical,
+      brand,
+      image: shell?.brand.socialImageUrl || shell?.brand.logoUrl,
+    }),
     ...(filtered ? { robots: { index: false, follow: true } } : {}),
   };
 }
@@ -86,7 +96,9 @@ export default async function CatalogPage({
           .where(eq(categories.status, "active"))
       : Promise.resolve([]),
   ]);
-  await recordEvent("catalog_view", "/catalogo", undefined, query.utm_source);
+  await trackView("catalog_view", "/catalogo", undefined, query.utm_source);
+  const term = searchTerm(query.q);
+  if (term && page <= 1) await trackView("search", term, undefined, String(result.total));
   const cards = await Promise.all(
     result.rows.map(async (product) => ({
       product: {

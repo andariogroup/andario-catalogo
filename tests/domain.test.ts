@@ -260,10 +260,10 @@ describe("catálogo público", () => {
     expect(catalogIntro({ slogan: "", shortDescription: "" })).toBe("");
     expect(catalogIsExploring({ orden: "name" })).toBe(false);
     expect(catalogIsExploring({ q: "bolso" })).toBe(true);
-    expect(catalogLayoutMode(1, false)).toBe("grid");
-    expect(catalogLayoutMode(1, true)).toBe("grid");
-    expect(catalogLayoutMode(12, false)).toBe("grid");
-    expect(catalogLayoutMode(0, true)).toBe("empty");
+    expect(catalogLayoutMode(1)).toBe("grid");
+    expect(catalogLayoutMode(1)).toBe("grid");
+    expect(catalogLayoutMode(12)).toBe("grid");
+    expect(catalogLayoutMode(0)).toBe("empty");
     expect(catalogShowSort(0)).toBe(false);
     expect(catalogShowSort(1)).toBe(false);
     expect(catalogShowSort(2)).toBe(true);
@@ -610,7 +610,9 @@ describe("seo", () => {
     expect(catalogCanonical({ pagina: "1" }, 1)).toBe("/catalogo");
     const place = organizationJsonLd({ name: "Tiendaya", url: "https://catalogo.ejemplo", city: "Valledupar", region: "Cesar", country: "Colombia", phone: "", image: "", address: "Edificio Portobelo", hours: "Lunes a sábado" });
     expect(place.address).toMatchObject({ streetAddress: "Edificio Portobelo", addressLocality: "Valledupar" });
-    expect(place.openingHours).toBe("Lunes a sábado");
+    // Horario en texto libre sin horas claras: se omite en vez de publicar un formato inválido.
+    expect(place.openingHours).toBeUndefined();
+    expect(place.address).toMatchObject({ addressCountry: "CO" });
     const bare = organizationJsonLd({ name: "Tiendaya", url: "https://catalogo.ejemplo", city: "", region: "", country: "", phone: "", image: "" });
     expect(bare.address).toBeUndefined();
     expect(bare.openingHours).toBeUndefined();
@@ -655,7 +657,9 @@ describe("seo", () => {
       kind: "physical",
       store: "TRINITARIAS",
     });
-    expect(branded.brand).toEqual({ "@type": "Brand", name: "TRINITARIAS" });
+    // La tienda vende marcas de terceros: no se declara como marca del producto, sí como vendedora.
+    expect(branded.brand).toBeUndefined();
+    expect(branded.offers).toMatchObject({ seller: { "@type": "Organization", name: "TRINITARIAS" } });
     expect(JSON.stringify(branded)).not.toMatch(/Tiendaya/i);
     const crumbs = breadcrumbJsonLd([{ name: "Inicio", url: "https://catalogo.ejemplo" }]);
     expect(crumbs["@type"]).toBe("BreadcrumbList");
@@ -689,8 +693,9 @@ describe("ficha: presentación universal", () => {
     expect(fichaPrimaryAction({ hasWhatsApp: true, soldOut: false })).toBe("whatsapp");
     expect(fichaPrimaryAction({ hasWhatsApp: true, soldOut: true })).toBe("quote");
     expect(fichaPrimaryAction({ hasWhatsApp: false, soldOut: false })).toBe("quote");
-    expect(fichaConversionPrimary({ cartEligible: true, hasWhatsApp: true, soldOut: false })).toBe("cart");
+    expect(fichaConversionPrimary({ cartEligible: true, hasWhatsApp: true, soldOut: false })).toBe("whatsapp");
     expect(fichaConversionPrimary({ cartEligible: false, hasWhatsApp: true, soldOut: false })).toBe("whatsapp");
+    expect(fichaConversionPrimary({ cartEligible: true, hasWhatsApp: false, soldOut: false })).toBe("cart");
     expect(fichaConversionPrimary({ cartEligible: false, hasWhatsApp: false, soldOut: true })).toBe("quote");
     expect(
       fichaConversionPrimary({

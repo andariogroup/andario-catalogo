@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Search, X } from "lucide-react";
 
 export function HeaderSearch() {
@@ -10,10 +10,12 @@ export function HeaderSearch() {
   const [pending, startTransition] = useTransition();
   const current = params.get("q")?.trim() ?? "";
   const [value, setValue] = useState(current);
-
-  useEffect(() => {
+  const [syncedCurrent, setSyncedCurrent] = useState(current);
+  // Si la URL cambia (p. ej. al limpiar filtros), el campo sigue a la URL.
+  if (syncedCurrent !== current) {
+    setSyncedCurrent(current);
     setValue(current);
-  }, [current]);
+  }
 
   function clearSearch() {
     const next = new URLSearchParams(params.toString());

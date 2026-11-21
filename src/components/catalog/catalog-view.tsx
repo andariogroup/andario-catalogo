@@ -53,7 +53,7 @@ export function CatalogView({
   pages,
 }: Props) {
   const exploring = catalogIsExploring(query);
-  const layout = catalogLayoutMode(total, exploring);
+  const layout = catalogLayoutMode(total);
   const results = catalogResultsLabel(
     total,
     cards.map((card) => card.product.kind),

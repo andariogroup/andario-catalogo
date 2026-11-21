@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   const path = url.searchParams.get("path") ?? "/";
   if (!path.startsWith("/") || path.startsWith("//") || path.includes("\\") || path.includes("?")) return new Response("Ruta inválida", { status: 400 });
   const shell = await loadShell().catch(() => null);
-  const target = `${catalogOrigin(shell?.settings.publicUrl ?? "")}${path}`;
+  const target = `${catalogOrigin(shell?.settings.publicUrl ?? "")}${path}?utm_source=qr`;
   if (url.searchParams.get("format") === "png") {
     if (path.startsWith("/producto/")) await recordEvent("product_qr_download", path);
     const buffer = await QRCode.toBuffer(target, { width: 720, margin: 2 });

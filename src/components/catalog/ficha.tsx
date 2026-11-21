@@ -4,12 +4,13 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useActionState } from "react";
 import { createQuoteAction } from "@/actions/quotes";
-import { trackEventAction } from "@/actions/events";
+import { sendEvent } from "@/lib/track-client";
 import { emitAddToCart, emitContactWhatsapp, TrackViewItem } from "@/components/consent/analytics-hooks";
 import { emptyForm } from "@/lib/form";
 import { cartEligible } from "@/lib/cart";
 import {
   fichaAvailabilityLabel,
+  fichaCommerceSupportNote,
   fichaCompareLabel,
   fichaConversionPrimary,
   fichaOptionReachable,
@@ -18,6 +19,7 @@ import {
   fichaSecondaryActions,
   fichaShowBlock,
   fichaShowQuantity,
+  fichaWhatsAppCtaLabel,
 } from "@/lib/ficha-presentation";
 import { productAsk, whatsappHref } from "@/lib/whatsapp";
 import { useCart } from "./cart";
@@ -25,6 +27,17 @@ import { ProductGallery } from "./product-gallery";
 import { useInterest } from "./interes";
 import { InlineActionSpinner } from "./skeletons";
 import { ShoppingBag } from "lucide-react";
+
+function WhatsAppGlyph({ size = 18 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true" focusable="false">
+      <path
+        fill="currentColor"
+        d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"
+      />
+    </svg>
+  );
+}
 
 type Variant = { id: string; signature: string; pricePesos: string | null; availability: string; sku: string };
 type Option = { id: string; attributeId: string; label: string };
@@ -174,6 +187,7 @@ export function FichaCompra({
       return "";
     }
   })();
+  const trackPath = origin || "/";
   const summary = shortDescription.trim();
   const body = description.trim();
   const saved = interest.items.some(
@@ -185,12 +199,12 @@ export function FichaCompra({
     try {
       if (navigator.share) {
         await navigator.share(data);
-        await trackEventAction("product_share", url, product.id);
+        sendEvent("product_share", trackPath, product.id);
         setShareNote("Compartido");
         return;
       }
       await navigator.clipboard.writeText(url);
-      await trackEventAction("product_link_copy", url, product.id);
+      sendEvent("product_link_copy", trackPath, product.id);
       setShareNote("Enlace copiado");
     } catch {
       setShareNote("");
@@ -224,7 +238,7 @@ export function FichaCompra({
         quantity,
       });
       setCartNote("Producto agregado al carrito");
-      void trackEventAction("cart_add", url, product.id);
+      sendEvent("cart_add", trackPath, product.id);
       emitAddToCart({
         currency: "COP",
         value: unitPesos == null ? null : unitPesos * quantity,
@@ -387,6 +401,19 @@ export function FichaCompra({
       ) : null}
 
       <div className="ficha-cta">
+        {primary === "whatsapp" && href ? (
+          <a
+            className="btn ficha-cta-primary ficha-cta-whatsapp"
+            href={href}
+            onClick={() => {
+              sendEvent("whatsapp_click", trackPath, product.id, "product");
+              emitContactWhatsapp("product", { id: product.id, name: product.name });
+            }}
+          >
+            <WhatsAppGlyph />
+            {fichaWhatsAppCtaLabel(product.priceMode)}
+          </a>
+        ) : null}
         {primary === "cart" ? (
           <button
             className="btn ficha-cta-primary ficha-cta-cart"
@@ -398,18 +425,6 @@ export function FichaCompra({
             {adding ? "Agregando…" : needsChoice ? "Elige opciones para agregar" : "Agregar al carrito"}
           </button>
         ) : null}
-        {primary === "whatsapp" && href ? (
-          <a
-            className="btn ficha-cta-primary"
-            href={href}
-            onClick={() => {
-              void trackEventAction("whatsapp_click", url, product.id);
-              emitContactWhatsapp("product", { id: product.id, name: product.name });
-            }}
-          >
-            {product.priceMode === "ask" ? "Consultar precio por WhatsApp" : "Consultar por WhatsApp"}
-          </a>
-        ) : null}
         {primary === "quote" ? (
           <button
             className="btn ficha-cta-primary"
@@ -419,12 +434,9 @@ export function FichaCompra({
             aria-expanded={quoteOpen}
             aria-controls="ficha-quote"
           >
-            {product.priceMode === "ask" ? "Solicitar cotización" : "Solicitar cotización"}
+            Solicitar cotización
           </button>
         ) : null}
-        <p className="ficha-commerce-note">
-          No es un pago en línea: envías una solicitud y {store} te confirma.
-        </p>
         {cartNote ? (
           <div className="ficha-cart-confirm" role="status" aria-live="polite">
             <p>{cartNote}</p>
@@ -440,21 +452,25 @@ export function FichaCompra({
         ) : null}
       </div>
 
-      <div className="ficha-secondary" aria-label="Otras acciones">
+      <div className="ficha-cta-extra">
         {secondary.showCart ? (
           <button
-            className="quiet ficha-cta-cart"
+            className="ficha-cta-secondary ficha-cta-cart"
             type="button"
             disabled={!canAdd || adding}
             onClick={addToCart}
           >
-            {adding ? <InlineActionSpinner label="Agregando al carrito" /> : null}
-            {adding ? "Agregando…" : needsChoice ? "Elige opciones para el carrito" : "Agregar al carrito"}
+            {adding ? <InlineActionSpinner label="Agregando al carrito" /> : <ShoppingBag aria-hidden="true" size={18} strokeWidth={1.9} />}
+            {adding ? "Agregando…" : needsChoice ? "Elige opciones para agregar" : "Agregar al carrito"}
           </button>
         ) : null}
+        <p className="ficha-commerce-note">{fichaCommerceSupportNote({ primary, store })}</p>
+      </div>
+
+      <div className="ficha-secondary" aria-label="Otras acciones">
         {secondary.showQuote ? (
           <button
-            className="quiet"
+            className="quiet ficha-tertiary"
             type="button"
             disabled={needsChoice || closed || Boolean(quote.ok)}
             onClick={openQuote}
@@ -466,18 +482,18 @@ export function FichaCompra({
         ) : null}
         {secondary.showWhatsApp && href ? (
           <a
-            className="quiet"
+            className="quiet ficha-tertiary"
             href={href}
             onClick={() => {
-              void trackEventAction("whatsapp_click", url, product.id);
+              sendEvent("whatsapp_click", trackPath, product.id, "product_secondary");
               emitContactWhatsapp("product_secondary", { id: product.id, name: product.name });
             }}
           >
-            Consultar por WhatsApp
+            {fichaWhatsAppCtaLabel(product.priceMode)}
           </a>
         ) : null}
         <button
-          className={`quiet${saved ? " is-saved" : ""}`}
+          className={`quiet ficha-tertiary${saved ? " is-saved" : ""}`}
           type="button"
           disabled={needsChoice || closed}
           onClick={() => {
@@ -489,12 +505,12 @@ export function FichaCompra({
               quantity,
               price: priceLabel,
             });
-            trackEventAction("interest_list_add", url, product.id);
+            sendEvent("interest_list_add", trackPath, product.id);
           }}
         >
           {saved ? "En tu lista" : "Guardar en lista"}
         </button>
-        <button className="quiet" type="button" onClick={() => void share()}>
+        <button className="quiet ficha-tertiary" type="button" onClick={() => void share()}>
           Compartir
         </button>
         {shareNote ? (

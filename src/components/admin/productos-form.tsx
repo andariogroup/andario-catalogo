@@ -473,10 +473,7 @@ function ExtraForm({ action, title, hint, label, children }: { action: (state: F
 function FixedRemove({ productId, attributeId }: { productId: string; attributeId: string }) {
   const [state, action, pending] = useActionState(removeProductAttributeAction, emptyForm);
   const [confirming, setConfirming] = useState(false);
-  const [dismissed, setDismissed] = useState("");
-  const notice = noticeOf(state, pending, "Quitando…");
-  const signature = `${pending}|${state.ok}|${state.error}`;
-  const visibleNotice = notice && signature !== dismissed ? notice : null;
+  const visibleNotice = noticeOf(state, pending, "Quitando…");
   return (
     <form action={action}>
       <input type="hidden" name="productId" value={productId} />

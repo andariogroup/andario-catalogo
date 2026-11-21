@@ -15,9 +15,6 @@ export type SeoDraft = {
   indexable: boolean;
   whatsappGeneral: string;
   whatsappProduct: string;
-  floatWhatsapp: boolean;
-  floatLabel: string;
-  floatSide: string;
 };
 
 export type PolicyDraft = { slug: string; title: string; body: string; published: boolean };
@@ -92,26 +89,12 @@ export function SeoStudio({
                 <span className="field-head"><span>Mensaje general</span><Count value={seo.whatsappGeneral} max={300} /></span>
                 <textarea name="whatsappGeneral" value={seo.whatsappGeneral} maxLength={300} rows={3} onChange={(event) => setSeo((current) => ({ ...current, whatsappGeneral: event.target.value }))} />
               </label>
-              <p className="hint">Lo usan el botón del encabezado, el flotante y la portada.</p>
+              <p className="hint">Lo usan el botón del encabezado y la portada.</p>
               <label className="field">
                 <span className="field-head"><span>Mensaje de la ficha</span><Count value={seo.whatsappProduct} max={300} /></span>
                 <textarea name="whatsappProduct" value={seo.whatsappProduct} maxLength={300} rows={3} onChange={(event) => setSeo((current) => ({ ...current, whatsappProduct: event.target.value }))} />
               </label>
               <p className="hint">Va al inicio del mensaje. El nombre, el SKU y el precio publicado se agregan solos.</p>
-              <label className="field check"><input name="floatWhatsapp" type="checkbox" checked={seo.floatWhatsapp} onChange={(event) => setSeo((current) => ({ ...current, floatWhatsapp: event.target.checked }))} />Botón flotante</label>
-              <p className="hint">En pantallas grandes se oculta cuando el encabezado ya muestra WhatsApp, para no tapar las fotos.</p>
-              <div className="seo-pair">
-                <label className="field">
-                  <span className="field-head"><span>Texto del botón</span><Count value={seo.floatLabel} max={24} /></span>
-                  <input name="floatLabel" value={seo.floatLabel} maxLength={24} onChange={(event) => setSeo((current) => ({ ...current, floatLabel: event.target.value }))} />
-                </label>
-                <label className="field">Lado
-                  <select name="floatSide" value={seo.floatSide} onChange={(event) => setSeo((current) => ({ ...current, floatSide: event.target.value }))}>
-                    <option value="right">Derecha</option>
-                    <option value="left">Izquierda</option>
-                  </select>
-                </label>
-              </div>
             </BoundForm>
           ) : (
             <div className="seo-read">
@@ -158,7 +141,6 @@ export function SeoStudio({
           <p className="seo-bubble">{general}</p>
           <p className="seo-kicker">Ficha</p>
           <p className="seo-bubble">{product}</p>
-          <p className="hint">{seo.floatWhatsapp ? `Flotante «${seo.floatLabel.trim() || "WhatsApp"}» a la ${seo.floatSide === "left" ? "izquierda" : "derecha"}.` : "El flotante está apagado."}</p>
         </section>
         <section className="seo-card">
           <h2>QR del catálogo</h2>

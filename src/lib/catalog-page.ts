@@ -103,9 +103,8 @@ export function catalogIsExploring(query: Record<string, string | undefined>) {
 
 /**
  * La densidad de columnas la define el CSS por viewport, no el número de productos.
- * `exploring` se conserva en la firma por compatibilidad con llamadas existentes.
  */
-export function catalogLayoutMode(total: number, _exploring = false): CatalogLayoutMode {
+export function catalogLayoutMode(total: number): CatalogLayoutMode {
   if (total <= 0) return "empty";
   return "grid";
 }
