@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
+import { useConsent } from "@/components/consent/consent-provider";
 import {
   trackAddToCart,
   trackContactWhatsapp,
@@ -22,11 +23,13 @@ export function TrackViewItem({
   value: number | null;
   items: AnalyticsItem[];
 }) {
+  const { analyticsAllowed, ready } = useConsent();
   const key = JSON.stringify({ currency, value, items });
   useEffect(() => {
+    if (!ready || !analyticsAllowed) return;
     trackViewItem({ currency, value, items });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- key serializa el payload
-  }, [key]);
+  }, [key, ready, analyticsAllowed]);
   return null;
 }
 
@@ -39,9 +42,11 @@ export function TrackViewItemList({
   itemListName?: string;
   items: AnalyticsItem[];
 }) {
+  const { analyticsAllowed, ready } = useConsent();
   useEffect(() => {
+    if (!ready || !analyticsAllowed) return;
     trackViewItemList({ item_list_id: itemListId, item_list_name: itemListName, items });
-  }, [itemListId, itemListName, items]);
+  }, [itemListId, itemListName, items, ready, analyticsAllowed]);
   return null;
 }
 
@@ -54,9 +59,11 @@ export function TrackViewCart({
   value: number | null;
   items: AnalyticsItem[];
 }) {
+  const { analyticsAllowed, ready } = useConsent();
   useEffect(() => {
+    if (!ready || !analyticsAllowed) return;
     trackViewCart({ currency, value, items });
-  }, [currency, value, items]);
+  }, [currency, value, items, ready, analyticsAllowed]);
   return null;
 }
 

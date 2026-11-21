@@ -4,7 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
+  useLayoutEffect,
   useState,
   useSyncExternalStore,
   type ReactNode,
@@ -19,7 +19,7 @@ import {
   type ConsentChoice,
   type ConsentDecisionStatus,
 } from "@/lib/consent";
-import { configureAnalyticsRuntime, trackPageView, updateConsentMode } from "@/lib/analytics";
+import { applyConsentUpdate, configureAnalyticsRuntime, trackPageView } from "@/lib/analytics";
 
 type ConsentContextValue = {
   ready: boolean;
@@ -96,25 +96,25 @@ export function ConsentProvider({
   const ready = hydrated;
   const [preferencesOpen, setPreferencesOpen] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!ready) return;
     configureAnalyticsRuntime({
       ready: measurementConfigured,
       consentAnalytics: Boolean(choice?.analytics),
       commerceEvents: commerceEventsEnabled,
     });
-    updateConsentMode(Boolean(choice?.analytics));
+    applyConsentUpdate(Boolean(choice?.analytics));
   }, [choice?.analytics, commerceEventsEnabled, measurementConfigured, ready]);
 
   const persist = useCallback(
     (next: ConsentChoice) => {
       writeConsent(next, expirationDays);
-      updateConsentMode(next.analytics);
       configureAnalyticsRuntime({
         ready: measurementConfigured,
         consentAnalytics: next.analytics,
         commerceEvents: commerceEventsEnabled,
       });
+      applyConsentUpdate(next.analytics);
       if (next.analytics && measurementConfigured) {
         trackPageView(window.location.pathname + window.location.search);
       }

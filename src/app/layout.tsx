@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Fraunces, Newsreader, Outfit, Source_Sans_3 } from "next/font/google";
+import { consentDefaultBootstrapSource } from "@/lib/consent";
+import { loadPrivacySettings } from "@/lib/google-settings";
 import { catalogOrigin, clip, siteUrl } from "@/lib/seo";
 import { loadShell } from "@/lib/store";
 import "./globals.css";
@@ -61,9 +64,11 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   let font = "fraunces";
+  let policyVersion = "1.0";
   try {
-    const shell = await loadShell();
+    const [shell, privacy] = await Promise.all([loadShell(), loadPrivacySettings()]);
     if (shell?.brand.fontPair === "newsreader") font = "newsreader";
+    policyVersion = privacy.policyVersion.trim() || "1.0";
   } catch {
     font = "fraunces";
   }
@@ -72,7 +77,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     font === "newsreader" ? `${newsreader.variable} ${sourceSans.variable}` : `${fraunces.variable} ${outfit.variable}`;
   return (
     <html lang="es-CO" data-font={font} data-scroll-behavior="smooth" className={fontClass}>
-      <body style={{ fontFamily: font === "newsreader" ? "var(--font-source)" : "var(--font-outfit)" }}>{children}</body>
+      <body style={{ fontFamily: font === "newsreader" ? "var(--font-source)" : "var(--font-outfit)" }}>
+        {children}
+        <Script id="andario-consent-default" strategy="beforeInteractive">
+          {consentDefaultBootstrapSource(policyVersion)}
+        </Script>
+      </body>
     </html>
   );
 }

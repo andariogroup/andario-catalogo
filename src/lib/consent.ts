@@ -95,6 +95,44 @@ export function consentNoticeNeeded(input: {
   return consentNeedsRenewal(input.choice, input.policyVersion, input.now);
 }
 
+/** Sí analítico vigente. Una versión distinta o una fecha vencida no concede medición. */
+export function storedAnalyticsGranted(raw: string | null, policyVersion: string, now = new Date()) {
+  const choice = parseConsentJson(raw);
+  if (!choice || consentNeedsRenewal(choice, policyVersion, now)) return false;
+  return choice.analytics;
+}
+
+/**
+ * Consent Mode v2 antes de hidratar. Lee la misma preferencia que el aviso.
+ * No carga Tag Manager. Publicidad queda denegada.
+ */
+export function consentDefaultBootstrapSource(policyVersion: string) {
+  const policy = JSON.stringify((policyVersion || "").trim() || "1.0");
+  const key = JSON.stringify(CONSENT_STORAGE_KEY);
+  return [
+    "window.dataLayer = window.dataLayer || [];",
+    "window.gtag = window.gtag || function gtag(){window.dataLayer.push(arguments);};",
+    "(function(){",
+    "var granted = false;",
+    "try {",
+    `var raw = localStorage.getItem(${key});`,
+    "var data = raw ? JSON.parse(raw) : null;",
+    "var expires = data && Date.parse(data.expiresAt);",
+    `granted = !!(data && data.analytics === true && typeof data.policyVersion === "string" && data.policyVersion.trim() === ${policy} && Number.isFinite(expires) && expires > Date.now());`,
+    "} catch (e) {}",
+    "window.gtag('consent', 'default', {",
+    "analytics_storage: granted ? 'granted' : 'denied',",
+    "ad_storage: 'denied',",
+    "ad_user_data: 'denied',",
+    "ad_personalization: 'denied',",
+    "personalization_storage: 'denied',",
+    "functionality_storage: 'granted',",
+    "security_storage: 'granted'",
+    "});",
+    "})();",
+  ].join("\n");
+}
+
 export function parseConsentJson(raw: string | null): ConsentChoice | null {
   if (!raw) return null;
   try {

@@ -25,9 +25,33 @@ export type CommerceEventName =
 
 type PushPayload = Record<string, unknown>;
 
+export type GoogleConsentState = {
+  analytics_storage: "granted" | "denied";
+  ad_storage: "denied";
+  ad_user_data: "denied";
+  ad_personalization: "denied";
+  personalization_storage: "denied";
+  functionality_storage: "granted";
+  security_storage: "granted";
+};
+
+/** Matriz de Consent Mode v2. La publicidad no se concede. */
+export function googleConsentState(analyticsGranted: boolean): GoogleConsentState {
+  return {
+    analytics_storage: analyticsGranted ? "granted" : "denied",
+    ad_storage: "denied",
+    ad_user_data: "denied",
+    ad_personalization: "denied",
+    personalization_storage: "denied",
+    functionality_storage: "granted",
+    security_storage: "granted",
+  };
+}
+
 declare global {
   interface Window {
-    dataLayer?: PushPayload[];
+    dataLayer?: unknown[];
+    gtag?: (...args: unknown[]) => void;
     __andarioAnalyticsReady?: boolean;
     __andarioConsentAnalytics?: boolean;
     __andarioCommerceEvents?: boolean;
@@ -68,8 +92,10 @@ export function trackPageView(path: string) {
   const clean = path.trim() || "/";
   if (typeof window === "undefined") return false;
   if (window.__andarioPageViewKey === clean) return false;
-  window.__andarioPageViewKey = clean;
-  return push("page_view", { page_path: clean, page_location: window.location.href, page_title: document.title });
+  const pageTitle = typeof document === "undefined" ? "" : document.title;
+  const sent = push("page_view", { page_path: clean, page_location: window.location.href, page_title: pageTitle });
+  if (sent) window.__andarioPageViewKey = clean;
+  return sent;
 }
 
 export function trackViewItemList(input: { item_list_id?: string; item_list_name?: string; items: AnalyticsItem[] }) {
@@ -145,17 +171,23 @@ export function trackPurchase(_args: {
   return false;
 }
 
-export function updateConsentMode(analyticsGranted: boolean) {
+function ensureGtag() {
+  window.dataLayer = window.dataLayer || [];
+  if (typeof window.gtag !== "function") {
+    window.gtag = function gtag() {
+      // Consent Mode lee este objeto arguments. Un arreglo rest no activa el estado predeterminado.
+      // eslint-disable-next-line prefer-rest-params
+      window.dataLayer?.push(arguments);
+    };
+  }
+}
+
+/** Actualiza Consent Mode. No crea un evento de catálogo. */
+export function applyConsentUpdate(analyticsGranted: boolean) {
   if (typeof window === "undefined") return;
   try {
-    window.dataLayer = window.dataLayer || [];
-    window.dataLayer.push({
-      event: "andario_consent_update",
-      analytics_storage: analyticsGranted ? "granted" : "denied",
-      ad_storage: "denied",
-      ad_user_data: "denied",
-      ad_personalization: "denied",
-    });
+    ensureGtag();
+    window.gtag?.("consent", "update", googleConsentState(analyticsGranted));
   } catch {
     /* ignore */
   }

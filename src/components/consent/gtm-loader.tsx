@@ -7,8 +7,8 @@ import { gtmIdProblem, normalizeGtmId } from "@/lib/google-ids";
 import { trackPageView } from "@/lib/analytics";
 
 /**
- * Basic Consent Mode: GTM solo se inyecta tras consentimiento analítico,
- * en producción (measurementConfigured) y con ID válido. Una sola carga.
+ * Tag Manager se inyecta solo tras el sí analítico, en producción y con ID válido.
+ * El comando consent default ya corrió en el layout, antes de esta carga.
  */
 export function GtmLoader({ containerId, measurementConfigured }: { containerId: string; measurementConfigured: boolean }) {
   const { analyticsAllowed, ready } = useConsent();

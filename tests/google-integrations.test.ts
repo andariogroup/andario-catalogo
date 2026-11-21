@@ -1,14 +1,23 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyConsentUpdate,
+  configureAnalyticsRuntime,
+  googleConsentState,
+  trackPageView,
+  trackPurchase,
+} from "@/lib/analytics";
+import {
   CONSENT_NOTICE_DESCRIPTION,
   CONSENT_NOTICE_TITLE,
   consentDecisionStatus,
+  consentDefaultBootstrapSource,
   consentIsExpired,
   consentNeedsRenewal,
   consentNoticeNeeded,
   defaultDeniedConsent,
   parseConsentJson,
   resolveConsentNoticeCopy,
+  storedAnalyticsGranted,
 } from "@/lib/consent";
 import {
   apexHostFromOrigin,
@@ -111,6 +120,93 @@ describe("consent persistence", () => {
       title: "Aviso propio",
       description: "Texto legal personalizado de la tienda.",
     });
+  });
+});
+
+function consentFromBootstrap(source: string, stored: string | null, now: number) {
+  const dataLayer: unknown[] = [];
+  const sandbox = { dataLayer } as { dataLayer: unknown[]; gtag?: (...args: unknown[]) => void };
+  const previous = Date.now;
+  Date.now = () => now;
+  try {
+    const run = new Function("window", "localStorage", source) as (
+      window: { dataLayer: unknown[] },
+      storage: { getItem: () => string | null },
+    ) => void;
+    run(sandbox, { getItem: () => stored });
+  } finally {
+    Date.now = previous;
+  }
+  const command = dataLayer[0] as { 0: string; 1: string; 2: Record<string, string> };
+  return { name: command[1], state: command[2], length: dataLayer.length };
+}
+
+describe("consent mode", () => {
+  const now = Date.parse("2026-06-01T00:00:00.000Z");
+  const future = "2027-01-01T00:00:00.000Z";
+  const source = consentDefaultBootstrapSource("1.0");
+
+  function stored(analytics: boolean, policyVersion = "1.0", expiresAt = future) {
+    return JSON.stringify({
+      analytics,
+      decidedAt: "2026-01-01T00:00:00.000Z",
+      policyVersion,
+      expiresAt,
+    });
+  }
+
+  it("niega analítica y publicidad si no hay un sí vigente", () => {
+    expect(source).not.toContain("gtm.js");
+    expect(source).not.toContain("andario_consent_update");
+    for (const raw of [null, stored(false), stored(true, "2.0"), stored(true, "1.0", "2000-01-01T00:00:00.000Z"), "{bad"]) {
+      expect(storedAnalyticsGranted(raw, "1.0", new Date(now))).toBe(false);
+      const command = consentFromBootstrap(source, raw, now);
+      expect(command.name).toBe("default");
+      expect(command.state.analytics_storage).toBe("denied");
+      expect(command.state.ad_storage).toBe("denied");
+      expect(command.state.ad_user_data).toBe("denied");
+      expect(command.state.ad_personalization).toBe("denied");
+      expect(command.length).toBe(1);
+    }
+  });
+
+  it("concede solo la analítica cuando el sí sigue vigente", () => {
+    const raw = stored(true);
+    expect(storedAnalyticsGranted(raw, "1.0", new Date(now))).toBe(true);
+    const command = consentFromBootstrap(source, raw, now);
+    expect(command.state.analytics_storage).toBe("granted");
+    expect(command.state.ad_storage).toBe("denied");
+    expect(command.state.functionality_storage).toBe("granted");
+    expect(command.state.security_storage).toBe("granted");
+    expect(googleConsentState(true).personalization_storage).toBe("denied");
+    expect(googleConsentState(false).analytics_storage).toBe("denied");
+  });
+
+  it("actualiza el consentimiento sin inventar un evento y reintenta page_view una sola vez", () => {
+    const dataLayer: unknown[] = [];
+    const previousWindow = globalThis.window;
+    const previousDocument = globalThis.document;
+    Object.assign(globalThis, {
+      window: { dataLayer, location: { href: "https://www.trinitarias.co/" } },
+      document: { title: "Tienda" },
+    });
+    try {
+      applyConsentUpdate(true);
+      const update = dataLayer[0] as { 0: string; 1: string; 2: { analytics_storage: string; ad_storage: string } };
+      expect(update[0]).toBe("consent");
+      expect(update[1]).toBe("update");
+      expect(update[2].analytics_storage).toBe("granted");
+      expect(update[2].ad_storage).toBe("denied");
+      expect(dataLayer.some((item) => typeof item === "object" && item !== null && "event" in item)).toBe(false);
+      expect(trackPageView("/")).toBe(false);
+      configureAnalyticsRuntime({ ready: true, consentAnalytics: true, commerceEvents: true });
+      expect(trackPageView("/")).toBe(true);
+      expect(trackPageView("/")).toBe(false);
+      expect(dataLayer.filter((item) => typeof item === "object" && item !== null && "event" in item)).toHaveLength(1);
+      expect(trackPurchase({ transaction_id: "x", currency: "COP", value: 1, items: [] })).toBe(false);
+    } finally {
+      Object.assign(globalThis, { window: previousWindow, document: previousDocument });
+    }
   });
 });
 
