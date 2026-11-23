@@ -92,6 +92,7 @@ export function catalogIsExploring(query: Record<string, string | undefined>) {
   return Boolean(
     catalogCopy(query.q) ||
       query.categoria ||
+      query.oferta === "1" ||
       query.disponibilidad ||
       query.minimo ||
       query.maximo ||
@@ -118,8 +119,9 @@ export function catalogShowSort(total: number) {
  * H1 contextual: categoría/subcategoría actual, o «Catálogo» en la vista general.
  * El breadcrumb complementa; no se usa un subtítulo que repita el mismo nombre.
  */
-export function catalogPageHeading(selected: { name: string } | undefined) {
+export function catalogPageHeading(selected: { name: string } | undefined, offers = false) {
   if (selected?.name) return selected.name;
+  if (offers) return "Ofertas";
   return "Catálogo";
 }
 
@@ -231,20 +233,23 @@ export function catalogCollectionNoun(kinds: string[]) {
 }
 
 /** Motivo del vacío del catálogo: copy y acciones sin inventar resultados. */
-export type CatalogEmptyKind = "search" | "filters" | "category" | "search_filters" | "catalog";
+export type CatalogEmptyKind = "search" | "filters" | "category" | "offers" | "search_filters" | "catalog";
 
 export function catalogEmptyKind(input: {
   q?: string;
   categoria?: string;
+  oferta?: string;
   /** Chips/filtros avanzados activos (disponibilidad, opciones, tipo, rango…). */
   filterCount: number;
 }): CatalogEmptyKind {
   const hasQuery = Boolean(catalogCopy(input.q));
   const hasFilters = input.filterCount > 0;
   const hasCategory = Boolean(input.categoria?.trim());
-  if (hasQuery && hasFilters) return "search_filters";
+  const hasOffers = input.oferta === "1";
+  if (hasQuery && (hasFilters || hasOffers)) return "search_filters";
   if (hasQuery) return "search";
   if (hasFilters) return "filters";
+  if (hasOffers) return "offers";
   if (hasCategory) return "category";
   return "catalog";
 }
@@ -281,6 +286,14 @@ export function catalogEmptyCopy(kind: CatalogEmptyKind, q = "") {
     return {
       title: "Sin resultados",
       body: "Todavía no hay elementos publicados en esta categoría.",
+      primary: "catalog" as const,
+      secondary: null,
+    };
+  }
+  if (kind === "offers") {
+    return {
+      title: "Sin ofertas",
+      body: "Ningún producto publicado tiene un precio anterior mayor al actual.",
       primary: "catalog" as const,
       secondary: null,
     };

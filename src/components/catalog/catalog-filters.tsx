@@ -62,6 +62,7 @@ export function CatalogFilters({ query, facets, advancedOpen, activeCount }: Pro
   const clearHref = catalogCanonical({
     q: query.q,
     categoria: query.categoria,
+    oferta: query.oferta,
     orden: query.orden,
   });
 
@@ -69,6 +70,7 @@ export function CatalogFilters({ query, facets, advancedOpen, activeCount }: Pro
     <form className="catalog-refine" action="/catalogo" method="get">
       {query.q ? <input type="hidden" name="q" value={query.q} /> : null}
       {query.categoria ? <input type="hidden" name="categoria" value={query.categoria} /> : null}
+      {query.oferta === "1" ? <input type="hidden" name="oferta" value="1" /> : null}
       {query.orden ? <input type="hidden" name="orden" value={query.orden} /> : null}
       <details
         ref={rootRef}

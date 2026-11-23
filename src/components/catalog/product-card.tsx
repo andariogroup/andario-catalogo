@@ -5,6 +5,7 @@ import {
   catalogKindLabel,
   type CatalogProductCard,
 } from "@/lib/catalog-page";
+import { discountPercentLabel } from "@/lib/ficha-presentation";
 import { mediaDeliveryUrl } from "@/lib/images";
 import { formatPesos } from "@/lib/money";
 import { emitSelectItem } from "@/components/consent/analytics-hooks";
@@ -26,11 +27,18 @@ export function ProductCard({ product, photo, symbol, href }: Props) {
         ? `Desde ${formatPesos(product.pricePesos == null ? null : Number(product.pricePesos), symbol)}`
         : formatPesos(product.pricePesos == null ? null : Number(product.pricePesos), symbol);
   const compare =
-    product.comparePesos != null &&
-    product.pricePesos != null &&
-    Number(product.comparePesos) > Number(product.pricePesos)
-      ? formatPesos(Number(product.comparePesos), symbol)
-      : "";
+    product.priceMode === "ask"
+      ? ""
+      : product.comparePesos != null &&
+          product.pricePesos != null &&
+          Number(product.comparePesos) > Number(product.pricePesos)
+        ? formatPesos(Number(product.comparePesos), symbol)
+        : "";
+  const discount = discountPercentLabel({
+    priceMode: product.priceMode,
+    comparePesos: product.comparePesos == null ? null : Number(product.comparePesos),
+    unit: product.pricePesos == null ? null : Number(product.pricePesos),
+  });
   const meta = [kind, availability].filter(Boolean).join(" · ");
   // <a> nativo: evita que el router cliente reutilice redirects 308 cacheados (tumba SEO)
   // que hacen que el clic “no cargue” mientras abrir en pestaña nueva sí funciona.
@@ -80,6 +88,7 @@ export function ProductCard({ product, photo, symbol, href }: Props) {
           <div className="catalog-card-price">
             {compare ? <span className="catalog-card-compare">{compare}</span> : null}
             <span className="price">{price}</span>
+            {discount ? <span className="catalog-card-off">{discount}</span> : null}
           </div>
           {meta ? <p className="catalog-card-meta">{meta}</p> : null}
         </div>

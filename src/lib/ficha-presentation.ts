@@ -32,6 +32,41 @@ export function fichaPriceLabel(input: {
   return formatPesos(input.unit, input.symbol);
 }
 
+/** Nota bajo el precio. El precio fijo no se presenta como referencia. */
+export function fichaPriceNote(priceMode: string) {
+  if (priceMode === "from") return "Valor orientativo. El total se confirma al atenderte.";
+  return "";
+}
+
+export type FichaProseBlock =
+  | { type: "p"; text: string }
+  | { type: "ul"; items: string[] }
+  | { type: "ol"; items: string[] };
+
+const UNORDERED = /^[-*•]\s+(.+)$/;
+const ORDERED = /^\d+[.)]\s+(.+)$/;
+
+/** Párrafos y listas del texto libre. No inventa secciones ni recorta el contenido. */
+export function fichaProseBlocks(value: string): FichaProseBlock[] {
+  const text = value.replace(/\r\n/g, "\n").trim();
+  if (!text) return [];
+  const blocks: FichaProseBlock[] = [];
+  for (const chunk of text.split(/\n{2,}/)) {
+    const lines = chunk.split("\n").map((line) => line.trim()).filter(Boolean);
+    if (!lines.length) continue;
+    if (lines.every((line) => UNORDERED.test(line))) {
+      blocks.push({ type: "ul", items: lines.map((line) => line.replace(UNORDERED, "$1")) });
+      continue;
+    }
+    if (lines.every((line) => ORDERED.test(line))) {
+      blocks.push({ type: "ol", items: lines.map((line) => line.replace(ORDERED, "$1")) });
+      continue;
+    }
+    blocks.push({ type: "p", text: lines.join("\n") });
+  }
+  return blocks;
+}
+
 export function fichaCompareLabel(input: {
   comparePesos: number | null;
   unit: number | null;
@@ -40,6 +75,31 @@ export function fichaCompareLabel(input: {
   if (input.comparePesos == null || input.unit == null) return "";
   if (!(input.comparePesos > input.unit)) return "";
   return formatPesos(input.comparePesos, input.symbol);
+}
+
+/** Porcentaje entero a partir del precio anterior y el actual. Sin oferta, cadena vacía. */
+export function discountPercent(input: {
+  priceMode?: string;
+  comparePesos: number | null;
+  unit: number | null;
+}): number | null {
+  if ((input.priceMode ?? "").trim().toLowerCase() === "ask") return null;
+  const compare = input.comparePesos;
+  const unit = input.unit;
+  if (compare == null || unit == null) return null;
+  if (!Number.isFinite(compare) || !Number.isFinite(unit)) return null;
+  if (!(compare > unit) || compare <= 0) return null;
+  const percent = Math.round(((compare - unit) / compare) * 100);
+  return percent >= 1 ? percent : null;
+}
+
+export function discountPercentLabel(input: {
+  priceMode?: string;
+  comparePesos: number | null;
+  unit: number | null;
+}) {
+  const percent = discountPercent(input);
+  return percent == null ? "" : `-${percent}%`;
 }
 
 /**

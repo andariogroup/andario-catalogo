@@ -23,6 +23,8 @@ describe("QA_ANDARIO empty catalog copy", () => {
     expect(catalogEmptyKind({ categoria: "cat-1", filterCount: 0 })).toBe("category");
     expect(catalogEmptyKind({ q: "mesa", filterCount: 1 })).toBe("search_filters");
     expect(catalogEmptyKind({ filterCount: 0 })).toBe("catalog");
+    expect(catalogEmptyKind({ oferta: "1", filterCount: 0 })).toBe("offers");
+    expect(catalogEmptyCopy("offers").body).toMatch(/precio anterior/i);
 
     expect(catalogEmptyCopy("search", "zzzz").body).toContain("zzzz");
     expect(catalogEmptyCopy("filters").body).toMatch(/filtros/i);

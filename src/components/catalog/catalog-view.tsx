@@ -69,7 +69,8 @@ export function CatalogView({
   const advancedOpen = catalogHasAdvancedFilters(query);
   const symbol = business.currencySymbol || "$";
   const hasQuery = Boolean(catalogCopy(query.q));
-  const heading = catalogPageHeading(selectedCategory);
+  const offersActive = query.oferta === "1";
+  const heading = catalogPageHeading(selectedCategory, offersActive && !selectedCategory);
   const showCrumbs = catalogShowBreadcrumb(selectedCategory);
   const showResultsBar = layout !== "empty" || exploring || activeCount > 0 || facets.useful;
   const showSort = catalogShowSort(total);
@@ -84,7 +85,7 @@ export function CatalogView({
   return (
     <main className={`wrap section catalog-page layout-${layout}`}>
       <TrackViewItemList
-        itemListId={selectedCategory?.id || "catalogo"}
+        itemListId={selectedCategory?.id || (offersActive ? "ofertas" : "catalogo")}
         itemListName={heading}
         items={cards.map((card) => ({
           item_id: card.product.id,
@@ -97,11 +98,11 @@ export function CatalogView({
         <nav className="catalog-crumbs" aria-label="Ubicación en el catálogo">
           <ol>
             <li>
-              <Link href={catalogCanonical({ ...query, categoria: undefined, pagina: undefined })}>Catálogo</Link>
+              <Link href={catalogCanonical({ ...query, oferta: undefined, categoria: undefined, pagina: undefined })}>Catálogo</Link>
             </li>
             <li>
               {crumbSub ? (
-                <Link href={catalogCanonical({ ...query, categoria: crumbParent.id, pagina: undefined })}>
+                <Link href={catalogCanonical({ ...query, oferta: undefined, categoria: crumbParent.id, pagina: undefined })}>
                   {crumbParent.name}
                 </Link>
               ) : (
@@ -115,44 +116,60 @@ export function CatalogView({
             ) : null}
           </ol>
         </nav>
+      ) : offersActive && !selectedCategory ? (
+        <nav className="catalog-crumbs" aria-label="Ubicación en el catálogo">
+          <ol>
+            <li>
+              <Link href="/catalogo">Catálogo</Link>
+            </li>
+            <li>
+              <span aria-current="page">Ofertas</span>
+            </li>
+          </ol>
+        </nav>
       ) : null}
 
       <header className="catalog-head">
         <h1>{heading}</h1>
       </header>
 
-      {parents.length ? (
-        <nav className="catalog-cats" aria-label="Categorías">
-          <Link
-            className={`catalog-cat${!query.categoria ? " is-active" : ""}`}
-            href={catalogCanonical({ ...query, categoria: undefined, pagina: undefined })}
-            aria-current={!query.categoria ? "page" : undefined}
-          >
-            Todos
-          </Link>
-          {parents.map((category) => {
-            const selected =
-              query.categoria === category.id ||
-              Boolean(selectedCategory && selectedCategory.parentId === category.id);
-            return (
-              <Link
-                key={category.id}
-                className={`catalog-cat${selected ? " is-active" : ""}`}
-                href={catalogCanonical({ ...query, categoria: category.id, pagina: undefined })}
-                aria-current={selected ? "page" : undefined}
-              >
-                {category.name}
-              </Link>
-            );
-          })}
-        </nav>
-      ) : null}
+      <nav className="catalog-cats" aria-label="Categorías">
+        <Link
+          className={`catalog-cat${!query.categoria && !offersActive ? " is-active" : ""}`}
+          href={catalogCanonical({ ...query, oferta: undefined, categoria: undefined, pagina: undefined })}
+          aria-current={!query.categoria && !offersActive ? "page" : undefined}
+        >
+          Todos
+        </Link>
+        <Link
+          className={`catalog-cat is-offer${offersActive && !query.categoria ? " is-active" : ""}`}
+          href={catalogCanonical({ ...query, oferta: "1", categoria: undefined, pagina: undefined })}
+          aria-current={offersActive && !query.categoria ? "page" : undefined}
+        >
+          <span className="catalog-offer-mark">Ofertas</span>
+        </Link>
+        {parents.map((category) => {
+          const selected =
+            query.categoria === category.id ||
+            Boolean(selectedCategory && selectedCategory.parentId === category.id);
+          return (
+            <Link
+              key={category.id}
+              className={`catalog-cat${selected ? " is-active" : ""}`}
+              href={catalogCanonical({ ...query, oferta: undefined, categoria: category.id, pagina: undefined })}
+              aria-current={selected ? "page" : undefined}
+            >
+              {category.name}
+            </Link>
+          );
+        })}
+      </nav>
 
       {children.length ? (
         <nav className="catalog-subs" aria-label="Subcategorías">
           <Link
             className={`catalog-sub${selectedCategory && !selectedCategory.parentId ? " is-active" : ""}`}
-            href={catalogCanonical({ ...query, categoria: parentForSubs || undefined, pagina: undefined })}
+            href={catalogCanonical({ ...query, oferta: undefined, categoria: parentForSubs || undefined, pagina: undefined })}
             aria-label="Todas las subcategorías"
             aria-current={selectedCategory && !selectedCategory.parentId ? "page" : undefined}
           >
@@ -162,7 +179,7 @@ export function CatalogView({
             <Link
               key={category.id}
               className={`catalog-sub${query.categoria === category.id ? " is-active" : ""}`}
-              href={catalogCanonical({ ...query, categoria: category.id, pagina: undefined })}
+              href={catalogCanonical({ ...query, oferta: undefined, categoria: category.id, pagina: undefined })}
               aria-current={query.categoria === category.id ? "page" : undefined}
             >
               {category.name}
@@ -186,6 +203,7 @@ export function CatalogView({
                 hidden={{
                   q: query.q,
                   categoria: query.categoria,
+                  oferta: query.oferta,
                   disponibilidad: query.disponibilidad,
                   minimo: query.minimo,
                   maximo: query.maximo,
@@ -210,7 +228,7 @@ export function CatalogView({
               <span aria-hidden="true">×</span>
             </Link>
           ))}
-          <Link className="catalog-chip-clear" href={catalogCanonical({ q: query.q, categoria: query.categoria, orden: query.orden })}>
+          <Link className="catalog-chip-clear" href={catalogCanonical({ q: query.q, categoria: query.categoria, oferta: query.oferta, orden: query.orden })}>
             Limpiar filtros
           </Link>
         </div>
@@ -222,12 +240,14 @@ export function CatalogView({
             const emptyKind = catalogEmptyKind({
               q: query.q,
               categoria: query.categoria,
+              oferta: query.oferta,
               filterCount: activeCount,
             });
             const empty = catalogEmptyCopy(emptyKind, query.q ?? "");
             const clearFiltersHref = catalogCanonical({
               q: query.q,
               categoria: query.categoria,
+              oferta: query.oferta,
               orden: query.orden,
             });
             const clearSearchHref = catalogCanonical({

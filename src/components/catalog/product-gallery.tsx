@@ -75,7 +75,7 @@ export function ProductGallery({ name, photos }: { name: string; photos: { url: 
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={mediaDeliveryUrl(photo.url, { width: 144, height: 180, crop: "fill" })}
+                src={mediaDeliveryUrl(photo.url, { width: 144, height: 180, crop: "limit" })}
                 alt=""
                 width={144}
                 height={180}

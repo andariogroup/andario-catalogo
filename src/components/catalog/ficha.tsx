@@ -9,13 +9,16 @@ import { emitAddToCart, emitContactWhatsapp, TrackViewItem } from "@/components/
 import { emptyForm } from "@/lib/form";
 import { cartEligible } from "@/lib/cart";
 import {
+  discountPercentLabel,
   fichaAvailabilityLabel,
   fichaCommerceSupportNote,
   fichaCompareLabel,
   fichaConversionPrimary,
   fichaOptionReachable,
   fichaPriceLabel,
+  fichaPriceNote,
   fichaPrimaryTag,
+  fichaProseBlocks,
   fichaSecondaryActions,
   fichaShowBlock,
   fichaShowQuantity,
@@ -138,6 +141,8 @@ export function FichaCompra({
   const availability = variant?.availability ?? product.availability;
   const sku = (variant?.sku || product.sku || "").trim();
   const priceLabel = fichaPriceLabel({ priceMode: product.priceMode, unit, symbol });
+  const priceNote = fichaPriceNote(product.priceMode);
+  const discount = discountPercentLabel({ priceMode: product.priceMode, comparePesos, unit });
   const compare = fichaCompareLabel({ comparePesos, unit, symbol });
   const variantLabel = Object.values(picked)
     .map((id) => options.find((option) => option.id === id)?.label)
@@ -289,8 +294,6 @@ export function FichaCompra({
         </ol>
       </nav>
 
-      {category ? <p className="ficha-context">{category.name}</p> : null}
-
       <header className="ficha-head">
         <h1>{product.name}</h1>
         {showTags ? (
@@ -303,16 +306,19 @@ export function FichaCompra({
         ) : null}
       </header>
 
-      {showSummary ? <p className="ficha-summary">{summary}</p> : null}
-
       <div className="ficha-price-block">
-        {compare ? <span className="ficha-compare">{compare}</span> : null}
-        <p className="ficha-price">{priceLabel}</p>
-        {product.priceMode !== "ask" && unit != null ? (
-          <p className="ficha-price-note">Precio de referencia. Confirmamos disponibilidad y total al atenderte.</p>
+        {compare || discount ? (
+          <p className="ficha-offer-line">
+            {compare ? <span className="ficha-compare">{compare}</span> : null}
+            {discount ? <span className="ficha-off">{discount}</span> : null}
+          </p>
         ) : null}
+        <p className="ficha-price">{priceLabel}</p>
+        {priceNote ? <p className="ficha-price-note">{priceNote}</p> : null}
         <p className={`ficha-stock is-${availability}`}>{fichaAvailabilityLabel(availability)}</p>
       </div>
+
+      {showSummary ? <p className="ficha-summary">{summary}</p> : null}
 
       {showVariants ? (
         <div className="ficha-options">
@@ -537,7 +543,7 @@ export function FichaCompra({
           {showDescription ? (
             <section className="ficha-section" aria-labelledby="ficha-desc-title">
               <h2 id="ficha-desc-title">Descripción</h2>
-              <div className="ficha-prose">{body}</div>
+              <FichaProse text={body} />
             </section>
           ) : null}
           {showFacts ? (
@@ -625,6 +631,36 @@ export function FichaCompra({
           </button>
         </form>
       </section>
+    </div>
+  );
+}
+
+function FichaProse({ text }: { text: string }) {
+  const blocks = fichaProseBlocks(text);
+  if (!blocks.length) return null;
+  return (
+    <div className="ficha-prose">
+      {blocks.map((block, index) => {
+        if (block.type === "ul") {
+          return (
+            <ul key={index}>
+              {block.items.map((item, itemIndex) => (
+                <li key={`${index}-${itemIndex}`}>{item}</li>
+              ))}
+            </ul>
+          );
+        }
+        if (block.type === "ol") {
+          return (
+            <ol key={index}>
+              {block.items.map((item, itemIndex) => (
+                <li key={`${index}-${itemIndex}`}>{item}</li>
+              ))}
+            </ol>
+          );
+        }
+        return <p key={index}>{block.text}</p>;
+      })}
     </div>
   );
 }

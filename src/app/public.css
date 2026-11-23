@@ -130,6 +130,29 @@
 .shop .catalog-cat { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 44px; padding: 0.35rem 0.7rem; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; background: transparent; color: var(--muted); font-size: 0.9rem; font-weight: 600; text-decoration: none; white-space: nowrap; }
 .shop .catalog-cat:hover { color: var(--ink); }
 .shop .catalog-cat.is-active { color: var(--ink); border-bottom-color: var(--ink); }
+.shop .catalog-cat.is-offer { color: var(--primary); padding-inline: 0.35rem; }
+.shop .catalog-cat.is-offer:hover { color: var(--primary); }
+.shop .catalog-offer-mark {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.7rem;
+  padding: 0.12rem 0.7rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 14%, var(--paper));
+  color: var(--primary);
+  font-weight: 700;
+}
+.shop .catalog-cat.is-offer:hover .catalog-offer-mark,
+.shop .catalog-cat.is-offer:focus-visible .catalog-offer-mark {
+  background: color-mix(in srgb, var(--primary) 24%, var(--paper));
+}
+.shop .catalog-cat.is-offer.is-active { border-bottom-color: var(--primary); }
+.shop .catalog-cat.is-offer.is-active .catalog-offer-mark,
+.shop .catalog-cat.is-offer.is-active:hover .catalog-offer-mark,
+.shop .catalog-cat.is-offer.is-active:focus-visible .catalog-offer-mark {
+  background: var(--primary);
+  color: var(--paper);
+}
 .shop .catalog-cat:focus-visible, .shop .catalog-sub:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 /* Subcategorías: una fila con scroll cuando hay muchas */
 .shop .catalog-subs {
@@ -351,6 +374,14 @@
   font-size: 0.8125rem; /* 13px */
   line-height: 1.2;
   text-decoration: line-through;
+}
+.shop .catalog-card-off,
+.shop .ficha-off,
+.shop .ficha-related-off {
+  color: var(--primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.2;
 }
 .shop .catalog-card .price {
   margin: 0;
@@ -771,10 +802,11 @@
   font-weight: 600;
 }
 .shop .ficha-crumbs li { display: inline-flex; align-items: center; gap: 0.35rem; min-width: 0; max-width: 100%; }
+.shop .ficha-crumbs li:last-child { flex: 1 1 6rem; }
 .shop .ficha-crumbs li:not(:last-child)::after { content: "\203A"; color: color-mix(in srgb, var(--muted) 70%, transparent); }
 .shop .ficha-crumbs a { display: inline-flex; align-items: center; min-height: 28px; color: inherit; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .shop .ficha-crumbs a:hover { color: var(--ink); text-decoration: underline; }
-.shop .ficha-crumbs [aria-current="page"] { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shop .ficha-crumbs [aria-current="page"] { display: block; min-width: 0; max-width: 100%; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .shop .ficha-context {
   margin: 0;
   color: var(--accent);
@@ -799,6 +831,7 @@
   line-height: 1.55;
 }
 .shop .ficha-price-block { display: grid; gap: 0.25rem; align-content: start; }
+.shop .ficha-offer-line { display: flex; flex-wrap: wrap; gap: 0.35rem 0.55rem; align-items: baseline; margin: 0; }
 .shop .ficha-compare {
   color: var(--muted);
   font-size: 0.9rem;
@@ -979,12 +1012,17 @@
   letter-spacing: -0.015em;
 }
 .shop .ficha-prose {
+  display: grid;
+  gap: 0.85rem;
   margin: 0;
   color: color-mix(in srgb, var(--ink) 90%, var(--muted));
   font-size: 0.98rem;
   line-height: 1.65;
-  white-space: pre-wrap;
 }
+.shop .ficha-prose p { margin: 0; white-space: pre-line; }
+.shop .ficha-prose ul,
+.shop .ficha-prose ol { margin: 0; padding-left: 1.2rem; }
+.shop .ficha-prose li + li { margin-top: 0.3rem; }
 .shop .ficha-facts { display: grid; gap: 0.45rem; margin: 0; }
 .shop .ficha-facts > div {
   display: grid;
@@ -1020,16 +1058,34 @@
   font-size: 1.15rem;
   font-weight: 700;
 }
-.shop .ficha-related ul { display: grid; gap: 1rem; margin: 0; padding: 0; list-style: none; }
-.shop .ficha-related-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.shop .ficha-related a { display: grid; gap: 0.35rem; color: inherit; text-decoration: none; }
+.shop .ficha-related { min-width: 0; }
+.shop .ficha-related ul { gap: 1rem; margin: 0; padding: 0; list-style: none; }
+.shop .ficha-related-grid {
+  display: flex;
+  gap: 0.85rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 0.2rem;
+}
+.shop .ficha-related-grid > li { flex: 0 0 min(72%, 16rem); scroll-snap-align: start; min-width: 0; }
+.shop .ficha-related a { display: grid; gap: 0.3rem; min-width: 0; color: inherit; text-decoration: none; }
+.shop .ficha-related a:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
 .shop .ficha-related img,
-.shop .ficha-related .ph { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: var(--radius); background: color-mix(in srgb, var(--primary) 12%, var(--paper)); }
-.shop .ficha-related-name { font-weight: 650; line-height: 1.25; }
-.shop .ficha-related-price { color: var(--muted); font-size: 0.92rem; }
+.shop .ficha-related .ph { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: contain; border-radius: var(--radius); background: color-mix(in srgb, var(--primary) 12%, var(--paper)); }
+.shop .ficha-related-name { font-weight: 650; line-height: 1.25; overflow-wrap: anywhere; }
+.shop .ficha-related-compare { color: var(--muted); font-size: 0.82rem; text-decoration: line-through; }
+.shop .ficha-related-price { color: var(--ink); font-size: 0.95rem; font-weight: 650; }
+.shop .ficha-related-stock { color: var(--muted); font-size: 0.8rem; font-weight: 650; }
 .shop .ficha-related a:hover .ficha-related-name,
 .shop .ficha-related a:focus-visible .ficha-related-name { text-decoration: underline; }
-@media (min-width: 720px) { .shop .ficha-related-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (min-width: 768px) {
+  .shop .ficha-related-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; }
+  .shop .ficha-related-grid > li { flex: none; }
+}
+@media (min-width: 1100px) {
+  .shop .ficha-related-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
 .shop .facts { display: grid; gap: 0.35rem; margin: 0.25rem 0 0; }
 .shop .facts div { display: flex; flex-wrap: wrap; gap: 0.35rem 0.6rem; }
 .shop .facts dt { font-weight: 650; }

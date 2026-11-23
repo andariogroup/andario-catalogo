@@ -35,7 +35,7 @@ export async function generateMetadata({
   const query = normalizeQuery(await searchParams);
   const shell = await loadShell().catch(() => null);
   const filtered = Boolean(
-    query.q || query.disponibilidad || query.minimo || query.maximo || query.opcion || query.opciones || query.tipo,
+    query.q || query.oferta === "1" || query.disponibilidad || query.minimo || query.maximo || query.opcion || query.opciones || query.tipo,
   );
   const brand = shell?.business.name?.trim() ?? "";
   // Distinta de la portada: aquí se describe el listado completo, no la marca.
@@ -63,6 +63,7 @@ export default async function CatalogPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const query = normalizeQuery(await searchParams);
+  if (query.oferta !== "1") query.oferta = undefined;
   const shell = await loadShell();
   const page = Number(query.pagina) || 1;
   const optionIds = parseCatalogOptionIds(query);
@@ -71,6 +72,7 @@ export default async function CatalogPage({
   const catalogQuery = {
     q: query.q,
     category: query.categoria,
+    offer: query.oferta === "1",
     availability: query.disponibilidad,
     option: query.opcion,
     options: optionIds,

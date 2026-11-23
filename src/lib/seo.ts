@@ -40,13 +40,15 @@ export function canonicalPath(path: string): string {
   return pathname || "/";
 }
 
-const CATALOG_QUERY = ["q", "categoria", "disponibilidad", "opcion", "opciones", "tipo", "minimo", "maximo", "orden"] as const;
+const CATALOG_QUERY = ["q", "categoria", "oferta", "disponibilidad", "opcion", "opciones", "tipo", "minimo", "maximo", "orden"] as const;
 
 export function catalogCanonical(query: Record<string, string | undefined>, page?: number): string {
   const params = new URLSearchParams();
   for (const key of CATALOG_QUERY) {
     const value = query[key]?.trim();
-    if (value) params.set(key, value);
+    if (!value) continue;
+    if (key === "oferta" && value !== "1") continue;
+    params.set(key, value);
   }
   const current = page ?? Number(query.pagina);
   if (Number.isInteger(current) && current > 1) params.set("pagina", String(current));

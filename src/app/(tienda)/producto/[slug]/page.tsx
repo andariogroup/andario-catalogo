@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Suspense } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
 import { FichaVista } from "@/components/catalog/ficha";
+import { ProductSuggestions } from "@/components/catalog/product-suggestions";
 import { JsonLd } from "@/components/shared/json-ld";
 import { cartStoreId } from "@/lib/cart";
-import { mediaDeliveryUrl } from "@/lib/images";
-import { formatPesos } from "@/lib/money";
 import { breadcrumbJsonLd, catalogOrigin, pageOpenGraph, productJsonLd, productSeoDescription, productSeoTitle, titled } from "@/lib/seo";
 import { getActiveProduct, loadShell, publishedPolicySlugs, redirectTarget } from "@/lib/store";
 import { trackView } from "@/lib/events";
@@ -88,8 +87,8 @@ export default async function ProductPage({
     } else {
       category = { name: categoryRow.name, href: `/categoria/${categoryRow.slug}` };
     }
-  }  const policies = await publishedPolicySlugs();
-  const related = found.related.filter((item) => item.id !== found.product.id).slice(0, 4);
+  }
+  const policies = await publishedPolicySlugs();
 
   return (
     <main className="wrap section ficha-page">
@@ -175,31 +174,13 @@ export default async function ProductPage({
         intro={shell.settings.whatsappProduct}
         initialOptionIds={initialOptionIds}
       />
-      {related.length ? (
-        <section className="ficha-related" aria-labelledby="ficha-related-title">
-          <h2 id="ficha-related-title">También en esta categoría</h2>
-          <ul className="ficha-related-grid">
-            {related.map((item) => (
-              <li key={item.id}>
-                <Link href={`/producto/${item.slug}`}>
-                  {item.photo ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={mediaDeliveryUrl(item.photo.url, { width: 480, crop: "limit" })} alt="" loading="lazy" decoding="async" />
-                  ) : (
-                    <span className="ph" aria-hidden="true" />
-                  )}
-                  <span className="ficha-related-name">{item.name}</span>
-                  <span className="ficha-related-price">
-                    {item.priceMode === "ask" || item.pricePesos == null
-                      ? "Consultar precio"
-                      : formatPesos(Number(item.pricePesos), shell.business.currencySymbol)}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+      <Suspense fallback={null}>
+        <ProductSuggestions
+          productId={found.product.id}
+          categoryId={found.product.categoryId}
+          symbol={shell.business.currencySymbol}
+        />
+      </Suspense>
     </main>
   );
 }

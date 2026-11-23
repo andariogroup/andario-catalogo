@@ -1,10 +1,11 @@
 import "server-only";
 
 import { cache } from "react";
-import { and, asc, count, desc, eq, gte, inArray, isNull, lte, ne, notInArray, or, sql, type SQL, type SQLWrapper } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, lte, ne, notInArray, or, sql, type SQL, type SQLWrapper } from "drizzle-orm";
 import { SQL_ACCENT_FROM, SQL_ACCENT_TO, likePattern, searchTokens } from "@/lib/search";
 import { getDb } from "@/lib/db";
 import { STORE_TIMEZONE, fillDays, type DashboardRange, type EventCounts } from "@/lib/dashboard-metrics";
+import { rankRelatedProducts } from "@/lib/ficha-related";
 import { INTERNAL_SOURCE } from "@/lib/event-guards";
 import { purgeExpiredQuotes } from "@/lib/quote-retention";
 import type { LibraryItem, LibraryUse } from "@/lib/library";
@@ -125,6 +126,8 @@ export async function loadHome() {
 export type CatalogQuery = {
   q?: string;
   category?: string;
+  /** Productos con precio anterior mayor al actual. No es una categoría. */
+  offer?: boolean;
   availability?: string;
   /** Legacy: una sola opción. Preferir `options`. */
   option?: string;
@@ -166,6 +169,16 @@ async function excludeInactiveCategoryProducts() {
       products.categoryId,
       inactive.map((row) => row.id),
     ),
+  );
+}
+
+/** Oferta real: precio anterior mayor que el actual, y no «consultar precio». */
+function catalogOfferClause() {
+  return and(
+    ne(products.priceMode, "ask"),
+    isNotNull(products.comparePesos),
+    isNotNull(products.pricePesos),
+    sql`${products.comparePesos} > ${products.pricePesos}`,
   );
 }
 
@@ -282,6 +295,10 @@ export async function listCatalog(query: CatalogQuery) {
     filters.push(inArray(products.categoryId, scope));
   }
   if (query.kind) filters.push(eq(products.kind, query.kind));
+  if (query.offer) {
+    const offer = catalogOfferClause();
+    if (offer) filters.push(offer);
+  }
 
   // Base de productos antes de facetas de variante.
   const baseRows = await db.select({ id: products.id }).from(products).where(and(...filters));
@@ -375,6 +392,10 @@ export async function listCatalogFacets(query: CatalogQuery) {
     baseFilters.push(inArray(products.categoryId, categoryScope));
   }
   if (kind) baseFilters.push(eq(products.kind, kind));
+  if (query.offer) {
+    const offer = catalogOfferClause();
+    if (offer) baseFilters.push(offer);
+  }
 
   const baseProducts = await db.select().from(products).where(and(...baseFilters));
   const baseIds = baseProducts.map((row) => row.id);
@@ -464,6 +485,10 @@ export async function listCatalogFacets(query: CatalogQuery) {
   if (categoryVisibility) kindFilters.push(categoryVisibility);
   if (searchClause) kindFilters.push(searchClause);
   if (categoryScope?.length) kindFilters.push(inArray(products.categoryId, categoryScope));
+  if (query.offer) {
+    const offer = catalogOfferClause();
+    if (offer) kindFilters.push(offer);
+  }
   const kindRows = await db.select({ kind: products.kind }).from(products).where(and(...kindFilters));
   const kindCounts = new Map<string, number>();
   for (const row of kindRows) {
@@ -583,25 +608,17 @@ export const getActiveProduct = cache(async (slug: string) => {
   if (!db) return null;
   const [product] = await db.select().from(products).where(and(eq(products.slug, slug), eq(products.status, "active"))).limit(1);
   if (!product) return null;
-  const [photos, tags, values, defs, options, vars, relatedRows] = await Promise.all([
+  const [photos, tags, values, defs, options, vars] = await Promise.all([
     productPhotos(product.id),
     db.select().from(productTags).where(eq(productTags.productId, product.id)),
     db.select().from(productAttributeValues).where(eq(productAttributeValues.productId, product.id)),
     db.select().from(attributes).orderBy(asc(attributes.sortOrder)),
     db.select().from(attributeOptions).orderBy(asc(attributeOptions.sortOrder)),
     db.select().from(variants).where(eq(variants.productId, product.id)),
-    product.categoryId
-      ? db
-          .select()
-          .from(products)
-          .where(and(eq(products.categoryId, product.categoryId), eq(products.status, "active"), ne(products.id, product.id)))
-          .orderBy(asc(products.sortOrder), asc(products.name))
-          .limit(4)
-      : Promise.resolve([]),
   ]);
   const variantIds = vars.map((item) => item.id);
   const categoryFields = { id: categories.id, name: categories.name, slug: categories.slug, parentId: categories.parentId, description: categories.description, seoDescription: categories.seoDescription };
-  const [varVals, variantPhotos, relatedPhotos, categoryRows] = await Promise.all([
+  const [varVals, variantPhotos, categoryRows] = await Promise.all([
     variantIds.length ? db.select().from(variantValues).where(inArray(variantValues.variantId, variantIds)) : Promise.resolve([]),
     variantIds.length
       ? db
@@ -611,14 +628,63 @@ export const getActiveProduct = cache(async (slug: string) => {
           .where(inArray(variantMedia.variantId, variantIds))
           .orderBy(asc(variantMedia.sortOrder))
       : Promise.resolve([]),
-    productFirstPhotos(relatedRows.map((item) => item.id)),
     product.categoryId ? db.select(categoryFields).from(categories).where(eq(categories.id, product.categoryId)).limit(1) : Promise.resolve([]),
   ]);
   const categoryRow = categoryRows[0] ?? null;
   const [parentRow] = categoryRow?.parentId ? await db.select(categoryFields).from(categories).where(eq(categories.id, categoryRow.parentId)).limit(1) : [];
-  const related = relatedRows.map((item) => ({ ...item, photo: relatedPhotos.get(item.id) ?? null }));
-  return { product, photos, tags: tags.map((tag) => tag.tag), values, defs, options, vars, varVals, variantPhotos, related, categoryRow, parentRow: parentRow ?? null };
+  return { product, photos, tags: tags.map((tag) => tag.tag), values, defs, options, vars, varVals, variantPhotos, categoryRow, parentRow: parentRow ?? null };
 });
+
+/** Recomendaciones de la ficha. No bloquea el producto: la página la pide aparte. */
+export async function loadRelatedProducts(product: { id: string; categoryId: string | null }) {
+  const db = getDb();
+  if (!db) return [];
+  let parentId: string | null = null;
+  let siblingCategoryIds: string[] = [];
+  if (product.categoryId) {
+    const [category] = await db.select({ parentId: categories.parentId }).from(categories).where(eq(categories.id, product.categoryId)).limit(1);
+    parentId = category?.parentId ?? null;
+    if (parentId) {
+      const siblings = await db.select({ id: categories.id }).from(categories).where(eq(categories.parentId, parentId));
+      siblingCategoryIds = siblings.map((item) => item.id).filter((id) => id !== product.categoryId);
+    }
+  }
+  const family = [product.categoryId, parentId, ...siblingCategoryIds].filter((id): id is string => Boolean(id));
+  const rows = await db
+    .select({
+      id: products.id,
+      name: products.name,
+      slug: products.slug,
+      status: products.status,
+      categoryId: products.categoryId,
+      featured: products.featured,
+      sortOrder: products.sortOrder,
+      priceMode: products.priceMode,
+      pricePesos: products.pricePesos,
+      comparePesos: products.comparePesos,
+      availability: products.availability,
+    })
+    .from(products)
+    .where(and(
+      eq(products.status, "active"),
+      ne(products.id, product.id),
+      family.length
+        ? or(inArray(products.categoryId, family), eq(products.featured, true))
+        : eq(products.featured, true),
+    ))
+    .orderBy(asc(products.sortOrder), asc(products.name), asc(products.id))
+    .limit(24);
+  const ranked = rankRelatedProducts({
+    currentId: product.id,
+    categoryId: product.categoryId,
+    parentId,
+    siblingCategoryIds,
+    candidates: rows,
+    limit: 4,
+  });
+  const photos = await productFirstPhotos(ranked.map((item) => item.id));
+  return ranked.map((item) => ({ ...item, photo: photos.get(item.id) ?? null }));
+}
 export async function redirectTarget(path: string) {
   const db = getDb();
   if (!db) return null;

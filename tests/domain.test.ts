@@ -66,6 +66,8 @@ import {
 import { mediaDeliveryUrl } from "@/lib/images";
 import { formatPublicPhone, internationalPhoneDigits, telHref } from "@/lib/phone";
 import {
+  discountPercent,
+  discountPercentLabel,
   fichaAvailabilityLabel,
   fichaCompareLabel,
   fichaConversionPrimary,
@@ -268,7 +270,9 @@ describe("catálogo público", () => {
     expect(catalogShowSort(1)).toBe(false);
     expect(catalogShowSort(2)).toBe(true);
     expect(catalogPageHeading(undefined)).toBe("Catálogo");
-    expect(catalogPageHeading({ name: "Iluminación" })).toBe("Iluminación");
+    expect(catalogPageHeading(undefined, true)).toBe("Ofertas");
+    expect(catalogPageHeading({ name: "Iluminación" }, true)).toBe("Iluminación");
+    expect(catalogIsExploring({ oferta: "1" })).toBe(true);
     expect(catalogShowBreadcrumb(undefined)).toBe(false);
     expect(catalogShowBreadcrumb({ parentId: null })).toBe(true);
     expect(catalogShowBreadcrumb({ parentId: "padre" })).toBe(true);
@@ -606,6 +610,8 @@ describe("seo", () => {
   it("canonicaliza sin query y no inventa oferta cuando el precio se consulta", () => {
     expect(canonicalPath("/producto/camisa?utm_source=qr")).toBe("/producto/camisa");
     expect(catalogCanonical({})).toBe("/catalogo");
+    expect(catalogCanonical({ oferta: "1", categoria: "abc" })).toBe("/catalogo?categoria=abc&oferta=1");
+    expect(catalogCanonical({ oferta: "si" })).toBe("/catalogo");
     expect(catalogCanonical({ q: "bolso", pagina: "2", utm_source: "qr" })).toBe("/catalogo?q=bolso&pagina=2");
     expect(catalogCanonical({ pagina: "1" }, 1)).toBe("/catalogo");
     const place = organizationJsonLd({ name: "Tiendaya", url: "https://catalogo.ejemplo", city: "Valledupar", region: "Cesar", country: "Colombia", phone: "", image: "", address: "Edificio Portobelo", hours: "Lunes a sábado" });
@@ -690,6 +696,12 @@ describe("ficha: presentación universal", () => {
     expect(fichaPriceLabel({ priceMode: "fixed", unit: 220000, symbol: "$" })).toBe("$220.000");
     expect(fichaCompareLabel({ comparePesos: 240000, unit: 220000, symbol: "$" })).toBe("$240.000");
     expect(fichaCompareLabel({ comparePesos: 200000, unit: 220000, symbol: "$" })).toBe("");
+    expect(discountPercent({ comparePesos: 69900, unit: 55900 })).toBe(20);
+    expect(discountPercentLabel({ comparePesos: 69900, unit: 55900 })).toBe("-20%");
+    expect(discountPercent({ comparePesos: 100, unit: 100 })).toBeNull();
+    expect(discountPercent({ comparePesos: 100, unit: 120 })).toBeNull();
+    expect(discountPercent({ priceMode: "ask", comparePesos: 100, unit: 50 })).toBeNull();
+    expect(discountPercent({ comparePesos: null, unit: 50 })).toBeNull();
     expect(fichaPrimaryAction({ hasWhatsApp: true, soldOut: false })).toBe("whatsapp");
     expect(fichaPrimaryAction({ hasWhatsApp: true, soldOut: true })).toBe("quote");
     expect(fichaPrimaryAction({ hasWhatsApp: false, soldOut: false })).toBe("quote");
