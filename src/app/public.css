@@ -994,14 +994,84 @@
 }
 .shop .ficha-share-note { color: var(--muted); font-size: 0.82rem; font-weight: 600; }
 .shop .ficha-sku { margin: 0; color: var(--muted); font-size: 0.8rem; font-weight: 600; }
-.shop .ficha-policies { display: flex; flex-wrap: wrap; gap: 0.45rem 0.9rem; }
-.shop .ficha-policies a {
+.shop .ficha-purchase { display: grid; gap: 0.35rem; min-width: 0; }
+.shop .ficha-purchase h2 {
+  margin: 0;
   color: var(--muted);
-  font-size: 0.84rem;
-  font-weight: 600;
-  text-decoration: none;
+  font-family: var(--font-body), sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
-.shop .ficha-policies a:hover { color: var(--ink); text-decoration: underline; }
+.shop .ficha-purchase-list { display: grid; }
+.shop .ficha-purchase-item { border-top: 1px solid var(--line); }
+.shop .ficha-purchase-item:last-child { border-bottom: 1px solid var(--line); }
+.shop .ficha-purchase summary {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 44px;
+  padding: 0.35rem 0;
+  color: var(--ink);
+  font-weight: 650;
+  list-style: none;
+  cursor: pointer;
+}
+.shop .ficha-purchase summary::-webkit-details-marker { display: none; }
+.shop .ficha-purchase summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.shop .ficha-purchase-icon { display: inline-flex; color: var(--primary); }
+.shop .ficha-purchase-label { flex: 1; min-width: 0; }
+.shop .ficha-purchase-chevron {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: rotate(45deg);
+}
+.shop .ficha-purchase-item[open] .ficha-purchase-chevron { transform: rotate(225deg); }
+.shop .ficha-purchase-body { display: grid; gap: 0.45rem; padding: 0 0 0.85rem 1.75rem; }
+.shop .ficha-purchase-body p { margin: 0; color: var(--muted); font-size: 0.92rem; line-height: 1.45; }
+.shop .ficha-purchase-body a { color: var(--primary); font-size: 0.92rem; font-weight: 650; }
+.shop .ficha-purchase-body a:hover { text-decoration: underline; }
+.shop .ficha-purchase-body a:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+@media (prefers-reduced-motion: no-preference) {
+  .shop .ficha-purchase-chevron { transition: transform 160ms ease; }
+  .shop .ficha-purchase-body { animation: ficha-purchase-in 160ms ease; }
+}
+@keyframes ficha-purchase-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.shop .policy-page { display: grid; gap: 1.25rem; }
+.shop .policy-back { margin: 0; }
+.shop .policy-back a { color: var(--primary); font-weight: 650; text-decoration: none; }
+.shop .policy-back a:hover { text-decoration: underline; }
+.shop .policy-back a:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.shop .policy-head { display: grid; gap: 0.35rem; }
+.shop .policy-head h1 { margin: 0; }
+.shop .policy-head p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+.shop .policy-index { max-width: 42rem; }
+.shop .policy-index ol { display: grid; gap: 0.35rem; margin: 0; padding-left: 1.2rem; }
+.shop .policy-index a { color: var(--ink); }
+.shop .policy-doc {
+  display: grid;
+  gap: 0.9rem;
+  max-width: 42rem;
+  color: color-mix(in srgb, var(--ink) 92%, var(--muted));
+  font-size: 1.02rem;
+  line-height: 1.65;
+}
+.shop .policy-doc h2 {
+  margin: 0.8rem 0 0;
+  font-family: var(--font-body), sans-serif;
+  font-size: 1.15rem;
+  scroll-margin-top: 5.5rem;
+}
+.shop .policy-doc p { margin: 0; white-space: pre-line; }
+.shop .policy-doc ul,
+.shop .policy-doc ol { margin: 0; padding-left: 1.2rem; }
+.shop .policy-doc li + li { margin-top: 0.3rem; }
 .shop .ficha-info { display: grid; gap: 1.15rem; padding-top: 0.35rem; border-top: 1px solid var(--line); }
 .shop .ficha-section { display: grid; gap: 0.55rem; }
 .shop .ficha-section h2 {
@@ -1919,7 +1989,6 @@
 .shop #contenido:focus { outline: none; }
 
 /* Objetivos táctiles: enlaces sueltos de pie y condiciones miden al menos 28 px de alto (WCAG 2.5.8). */
-.shop .ficha-policies a,
 .shop .footer-links a,
 .shop .footer-meta a { display: inline-flex; align-items: center; min-height: 28px; }
 .shop .footer-links nav,

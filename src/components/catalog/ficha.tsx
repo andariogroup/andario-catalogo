@@ -27,6 +27,7 @@ import {
 import { productAsk, whatsappHref } from "@/lib/whatsapp";
 import { useCart } from "./cart";
 import { ProductGallery } from "./product-gallery";
+import { PurchaseInfo } from "./purchase-info";
 import { useInterest } from "./interes";
 import { InlineActionSpinner } from "./skeletons";
 import { ShoppingBag } from "lucide-react";
@@ -78,7 +79,7 @@ export function FichaCompra({
   storeId: string;
   phone: string;
   symbol: string;
-  product: { id: string; name: string; sku: string; price: number | null; priceMode: string; availability: string; kind: string };
+  product: { id: string; name: string; slug: string; sku: string; price: number | null; priceMode: string; availability: string; kind: string };
   variants: Variant[];
   options: Option[];
   values: Value[];
@@ -179,12 +180,6 @@ export function FichaCompra({
   const showSku = fichaShowBlock(sku);
   const showTags = fichaShowBlock(tags);
   const showVariants = groups.length > 0;
-  const policyLinks = [
-    policies.includes("envios") ? { href: "/politicas/envios", label: "Envíos" } : null,
-    policies.includes("cambios") ? { href: "/politicas/cambios", label: "Cambios" } : null,
-    policies.includes("terminos") ? { href: "/politicas/terminos", label: "Términos" } : null,
-    policies.includes("privacidad") ? { href: "/politicas/privacidad", label: "Privacidad" } : null,
-  ].filter(Boolean) as { href: string; label: string }[];
   const origin = (() => {
     try {
       return new URL(url).pathname;
@@ -528,15 +523,7 @@ export function FichaCompra({
 
       {showSku ? <p className="ficha-sku">SKU {sku}</p> : null}
 
-      {policyLinks.length ? (
-        <nav className="ficha-policies" aria-label="Condiciones">
-          {policyLinks.map((item) => (
-            <Link key={item.href} href={item.href}>
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      ) : null}
+      <PurchaseInfo kind={product.kind} policies={policies} productPath={`/producto/${product.slug}`} />
 
       {showDescription || showFacts ? (
         <div className="ficha-info">
